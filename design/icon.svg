@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Знак ΒybAi: сетка 3×3 без двух клеток, как в логотипе -->
+  <rect width="1024" height="1024" rx="180" fill="#22251f"/>
+  <g fill="#c8d9ff">
+    <rect x="232" y="232" width="168" height="168"/>
+    <rect x="428" y="232" width="168" height="168"/>
+    <rect x="232" y="428" width="168" height="168"/>
+    <rect x="624" y="428" width="168" height="168"/>
+    <rect x="232" y="624" width="168" height="168"/>
+    <rect x="428" y="624" width="168" height="168"/>
+    <rect x="624" y="624" width="168" height="168"/>
+  </g>
+</svg>

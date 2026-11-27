@@ -1,0 +1,25 @@
+[package]
+name = "bybai"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "bybai_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-single-instance = "2"
+serde_json = { version = "1", features = ["preserve_order"] }
+tiny_http = "0.12"
+
+# Размер важнее скорости: https://v2.tauri.app/concept/size/
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
