@@ -186,6 +186,13 @@ describe('навык bybmap', () => {
     );
   });
 
+  // Codex на проекте из Roblox Studio отложил схему, искал «папку проекта», а при отказе в записи унёс файл во временную папку.
+  it('правила велят писать сразу, в рабочую папку сессии и никуда больше', () => {
+    expect(MAP_RULES).toContain(`в файл ${MAP_FILE} в рабочей папке сессии`);
+    expect(MAP_RULES).toContain('Сделай это сразу');
+    expect(MAP_RULES).toContain('Не сохраняй схему в другом месте');
+  });
+
   it('команда своя у каждого агента и узнаётся в запросе', () => {
     expect(mapCommand('claude')).toBe('/bybmap');
     expect(mapCommand('codex')).toBe('$bybmap');
