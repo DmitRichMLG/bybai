@@ -1,5 +1,29 @@
+# Сборка и зависимости
 node_modules/
 dist/
 src-tauri/target/
 src-tauri/gen/
+*.tsbuildinfo
 *.log
+
+# Локальные заметки и настройки: про машину владельца, в репозитории не нужны
+STATUS.local.md
+.env
+.env.*
+.claude/
+.codex/
+.playwright-mcp/
+
+# Кадры макетов пересобираются из design/mock/next.html
+design/mock/*.png
+
+# Копии и временные файлы, которые окно кладёт рядом с настройками агентов
+*.bybai-backup
+*.bybai-tmp
+
+# Мусор ОС и редакторов
+Thumbs.db
+desktop.ini
+.DS_Store
+.idea/
+.vscode/
