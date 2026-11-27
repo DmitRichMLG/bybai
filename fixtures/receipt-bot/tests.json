@@ -1,0 +1,94 @@
+{
+  "projectId": "receipt-bot",
+  "suites": [
+    {
+      "id": "receipt",
+      "file": "test_receipt.py",
+      "output": "Реквизиты чека",
+      "cases": [
+        {
+          "id": "receipt.read",
+          "title": "Читаемый QR-код",
+          "nodeId": "receive",
+          "pytestNodeId": "tests/test_receipt.py::test_read"
+        },
+        {
+          "id": "receipt.blur",
+          "title": "Размытое фото",
+          "nodeId": "retry",
+          "pytestNodeId": "tests/test_receipt.py::test_blur"
+        },
+        {
+          "id": "receipt.items",
+          "title": "API вернул товары и дату",
+          "nodeId": "purchase",
+          "pytestNodeId": "tests/test_receipt.py::test_items"
+        }
+      ]
+    },
+    {
+      "id": "rules",
+      "file": "test_rules.py",
+      "output": "Допущенный чек",
+      "cases": [
+        {
+          "id": "rules.date",
+          "title": "Дата в периоде акции",
+          "nodeId": "rules",
+          "pytestNodeId": "tests/test_rules.py::test_date"
+        },
+        {
+          "id": "rules.sku",
+          "title": "Акционный товар в чеке",
+          "nodeId": "rules",
+          "pytestNodeId": "tests/test_rules.py::test_sku"
+        },
+        {
+          "id": "rules.coffee",
+          "title": "Только кофе → отказ",
+          "nodeId": "reject",
+          "pytestNodeId": "tests/test_rules.py::test_coffee"
+        }
+      ]
+    },
+    {
+      "id": "registry",
+      "file": "test_registry.py",
+      "output": "Статус заявки",
+      "cases": [
+        {
+          "id": "registry.new",
+          "title": "Новая заявка",
+          "nodeId": "registry",
+          "pytestNodeId": "tests/test_registry.py::test_new"
+        },
+        {
+          "id": "registry.duplicate",
+          "title": "Повторный чек",
+          "nodeId": "registry",
+          "pytestNodeId": "tests/test_registry.py::test_duplicate",
+          "edgeId": "registry-duplicate"
+        }
+      ]
+    },
+    {
+      "id": "reply",
+      "file": "test_reply.py",
+      "output": null,
+      "cases": [
+        {
+          "id": "reply.ok",
+          "title": "Подтверждение",
+          "nodeId": "new",
+          "pytestNodeId": "tests/test_reply.py::test_ok"
+        },
+        {
+          "id": "reply.duplicate_reply",
+          "title": "Ответ о повторе",
+          "nodeId": "duplicate",
+          "pytestNodeId": "tests/test_reply.py::test_duplicate_reply"
+        }
+      ]
+    }
+  ]
+}

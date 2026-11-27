@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="UTF-8">
+<title>ΒybAi — состояния компонентов</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Лист состояний: всё, чего нет на контрольном кадре reference.html. */
+.sheet { width: 1480px; margin: 0 auto; padding: 48px 40px 64px; }
+.sheet > h1 { font-size: var(--fs-7); letter-spacing: -1.3px; font-weight: 600; }
+.sheet > p { font-size: var(--fs-4); color: var(--ink-2); margin-top: 6px; max-width: 900px; }
+.sheet section.block { margin-top: 44px; border-top: 1px solid var(--rule-strong); padding-top: 14px; }
+.sheet section.block > h2 { font: var(--fs-2) var(--font-mono); color: var(--ink-3); letter-spacing: .04em; font-weight: 400; margin-bottom: 20px; }
+.rowx { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+.cap { font: var(--fs-1)/1.45 var(--font-mono); color: var(--ink-3); margin-top: 8px; max-width: 240px; }
+.sheet .node, .sheet .file, .sheet .term { position: relative; }
+.sheet .wires { position: static; display: block; width: 230px; height: 30px; z-index: auto; }
+.sheet .wires text { stroke: var(--paper); }
+.sheet .zoom { position: static; display: inline-flex; }
+.sheet .aside { width: var(--tests-w); padding: 20px 28px; overflow: visible; }
+.sheet .test { width: 384px; }
+.sheet .top, .sheet .log { margin-bottom: 10px; }
+.sheet .log { border: 1px solid var(--rule-strong); }
+.swatch { width: 150px; }
+.swatch i { display: block; height: 44px; border: 1px solid var(--rule); }
+</style>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-input" viewBox="0 0 16 16"><path d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h1.5v1.5H9.5zM12 12h1.5v1.5H12z"/></symbol>
+  <symbol id="i-http" viewBox="0 0 16 16"><path d="M2 5.5h11M10.5 3 13 5.5 10.5 8M14 10.5H3M5.5 8 3 10.5 5.5 13"/></symbol>
+  <symbol id="i-logic" viewBox="0 0 16 16"><path d="M4.5 2v12M4.5 9h3a4 4 0 0 0 4-4V2"/></symbol>
+  <symbol id="i-database" viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/></symbol>
+  <symbol id="i-file" viewBox="0 0 16 16"><path d="M4 2h5l3 3v9H4zM9 2v3h3"/></symbol>
+  <marker id="arr" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" orient="auto" refX="7" refY="4"><polygon class="arrow" points="0,0 8,4 0,8"/></marker>
+  <marker id="arr-run" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" orient="auto" refX="7" refY="4"><polygon class="arrow is-running" points="0,0 8,4 0,8"/></marker>
+  <marker id="arr-fail" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" orient="auto" refX="7" refY="4"><polygon class="arrow is-failed" points="0,0 8,4 0,8"/></marker>
+  <marker id="arr-exc" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" orient="auto" refX="7" refY="4"><polygon class="arrow exception" points="0,0 8,4 0,8"/></marker>
+</defs></svg>
+
+<div class="sheet">
+  <h1>Состояния компонентов</h1>
+  <p>Дополнение к контрольному кадру <span class="mono">reference.html</span>. Цвет показывает состояние прогона, рисунок линии — роль связи. Цвет всегда продублирован знаком или словом.</p>
+
+  <section class="block">
+    <h2>01 / Цвет состояния</h2>
+    <div class="rowx">
+      <div class="swatch"><i style="background:var(--run)"></i><div class="cap">--run<br>выполняется сейчас</div></div>
+      <div class="swatch"><i style="background:var(--fail)"></i><div class="cap">--fail<br>проверка упала</div></div>
+      <div class="swatch"><i style="background:var(--wire)"></i><div class="cap">--wire<br>пройдено, обычная связь</div></div>
+      <div class="swatch"><i style="background:var(--pending)"></i><div class="cap">--pending<br>ещё не запускалось</div></div>
+      <div class="swatch"><i style="background:var(--exception)"></i><div class="cap">--exception<br>ветка-исключение; это роль, а не ошибка</div></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>02 / Связи</h2>
+    <div class="rowx">
+      <div><svg class="wires"><path marker-end="url(#arr)" d="M4 20H222"/><text x="6" y="12">да</text></svg><div class="cap">default и alternate — сплошная</div></div>
+      <div><svg class="wires"><path class="config" marker-end="url(#arr)" d="M4 20H222"/><text x="6" y="12">условия акции</text></svg><div class="cap">config — точки: данные из файла</div></div>
+      <div><svg class="wires"><path class="exception" marker-end="url(#arr-exc)" d="M4 20H222"/><text x="6" y="12">QR не читается</text></svg><div class="cap">exception — штрих, терракота</div></div>
+      <div><svg class="wires"><path class="is-running" marker-end="url(#arr-run)" d="M4 20H222"/><text class="is-running" x="6" y="12">повтор</text></svg><div class="cap">идёт проверка этой ветки</div></div>
+      <div><svg class="wires"><path class="is-failed" marker-end="url(#arr-fail)" d="M4 20H222"/><text class="is-failed" x="6" y="12">повтор</text></svg><div class="cap">проверка этой ветки упала</div></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>03 / Узел действия и конфиг</h2>
+    <div class="rowx">
+      <div>
+        <article class="node" style="width:224px">
+          <div class="tech"><span class="ico"><svg><use href="#i-database"/></svg></span>PostgreSQL</div>
+          <h2>Записать заявку</h2>
+          <p>Одна запись на чек в пределах акции. Конфликт ключа означает повтор.</p>
+          <footer>INSERT … ON CONFLICT</footer>
+        </article>
+        <div class="cap">покой: все проверки узла пройдены или ещё не начаты</div>
+      </div>
+      <div>
+        <article class="node is-running" style="width:224px">
+          <div class="tech"><span class="ico"><svg><use href="#i-database"/></svg></span>PostgreSQL</div>
+          <h2>Записать заявку</h2>
+          <p>Одна запись на чек в пределах акции. Конфликт ключа означает повтор.</p>
+          <footer>INSERT … ON CONFLICT</footer>
+        </article>
+        <div class="cap">идёт хотя бы одна проверка узла</div>
+      </div>
+      <div>
+        <article class="node is-failed" style="width:224px">
+          <span class="flag">✕ упал</span>
+          <div class="tech"><span class="ico"><svg><use href="#i-database"/></svg></span>PostgreSQL</div>
+          <h2>Записать заявку</h2>
+          <p>Одна запись на чек в пределах акции. Конфликт ключа означает повтор.</p>
+          <footer>INSERT … ON CONFLICT</footer>
+        </article>
+        <div class="cap">упала хотя бы одна проверка; держится до следующего run.started</div>
+      </div>
+      <div>
+        <article class="node" style="width:224px">
+          <div class="tech">Python · rules.py</div>
+          <h2>Проверить условия</h2>
+          <p>Дата входит в период акции и в чеке есть чай «Лист»?</p>
+          <footer>date ∈ period  ∧  SKU</footer>
+        </article>
+        <div class="cap">без значка: поле icon не задано</div>
+      </div>
+      <div>
+        <section class="file" style="width:260px">
+          <header><svg><use href="#i-file"/></svg>promo.yaml</header>
+<pre><b>id:</b> tea_nov_2026
+<b>from:</b> 2026-11-01
+<b>through:</b> 2026-11-30
+<b>products:</b> [LIST_TEA]
+<b>entries_per_receipt:</b> 1</pre>
+        </section>
+        <div class="cap">конфиг: нейтральный, моноширинный, без подвала</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>04 / Исход</h2>
+    <div class="rowx">
+      <div><div class="term" style="width:271px"><small>Telegram · sendMessage</small><h3>Чек зарегистрирован</h3><p>Заявка №247</p></div><div class="cap">обычный исход</div></div>
+      <div><div class="term exception" style="width:271px"><small>Ошибка чтения</small><h3>Запросить новое фото</h3><p>QR-код нужен целиком.</p></div><div class="cap">входящая связь с ролью exception</div></div>
+      <div><div class="term is-running" style="width:271px"><small>Telegram · sendMessage</small><h3>Уже зарегистрирован</h3><p>Вторая заявка не создаётся.</p></div><div class="cap">идёт проверка узла или ведущей к нему связи</div></div>
+      <div><div class="term is-failed" style="width:271px"><span class="flag">✕ упал</span><small>Telegram · sendMessage</small><h3>Уже зарегистрирован</h3><p>Вторая заявка не создаётся.</p></div><div class="cap">финал демо: упал «Ответ о повторе»</div></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>05 / Подтест и группа</h2>
+    <div class="rowx">
+      <div>
+        <section class="test">
+          <header><strong>все статусы строки</strong><b>4 / 7</b></header>
+          <div class="row"><span>Пройден</span><small class="passed">✓</small></div>
+          <div class="row"><span>Выполняется</span><small class="running"><i></i> Идёт</small></div>
+          <div class="row"><span>В очереди</span><small class="waiting"><i></i> Ожидает</small></div>
+          <div class="row"><span>Упал</span><small class="failed">✕ Упал</small></div>
+          <div class="reason">Причина из message события test.finished.</div>
+          <div class="row"><span>Пропущен</span><small class="skipped">– Пропущен</small></div>
+          <div class="row"><span>Шёл, когда прогон оборвался</span><small class="aborted">■ Прерван</small></div>
+          <div class="row"><span>Не дошла очередь</span><small class="aborted">Не запускался</small></div>
+        </section>
+        <div class="cap">числитель в шапке — завершённые: пройден, упал, пропущен</div>
+      </div>
+      <div>
+        <section class="test is-running">
+          <header><strong>test_registry.py</strong><b>1 / 2</b></header>
+          <div class="row"><span>Новая заявка</span><small class="passed">✓</small></div>
+          <div class="row"><span>Повторный чек</span><small class="running"><i></i> Идёт</small></div>
+        </section>
+        <div class="cap">в группе идёт проверка</div>
+      </div>
+      <div>
+        <section class="test is-failed">
+          <header><strong>test_reply.py</strong><b>2 / 2</b></header>
+          <div class="row"><span>Подтверждение</span><small class="passed">✓</small></div>
+          <div class="row"><span>Ответ о повторе</span><small class="failed">✕ Упал</small></div>
+          <div class="reason">Ожидалось «Этот чек уже зарегистрирован». Получено «Чек зарегистрирован».</div>
+        </section>
+        <div class="cap">финал демо, seq=22: причина раскрыта сразу, без клика</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>06 / Счётчик и прогресс</h2>
+    <div class="rowx">
+      <div class="aside">
+        <header class="aside-title"><h2>Тесты</h2><span class="chip">7 из 10 пройдено</span></header>
+        <div class="progress"><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="running"></i><i></i><i></i></div>
+        <div class="cap">идёт прогон</div>
+      </div>
+      <div class="aside">
+        <header class="aside-title"><h2>Тесты</h2><span class="chip">9 из 10 пройдено · <b>1 упал</b></span></header>
+        <div class="progress"><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="failed"></i></div>
+        <div class="cap">прогон окончен с ошибкой</div>
+      </div>
+      <div class="aside">
+        <header class="aside-title"><h2>Тесты</h2><span class="chip">Прерван · 6 из 10 пройдено</span></header>
+        <div class="progress"><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="skipped"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i></i><i></i><i></i></div>
+        <div class="cap">прерван; четвёртый подтест пропущен</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>07 / Источник событий в верхней полосе</h2>
+    <div class="top"><div class="logo"><span class="mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>Βyb<b>Ai</b></span></div><div class="header-info">receipt-bot <span>/</span> main</div><div class="status"><i></i> CLI · демопрогон</div></div>
+    <div class="top"><div class="logo"><span class="mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>Βyb<b>Ai</b></span></div><div class="header-info">receipt-bot <span>/</span> main</div><div class="status"><i></i> CLI · подключено</div></div>
+    <div class="top"><div class="logo"><span class="mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>Βyb<b>Ai</b></span></div><div class="header-info">receipt-bot <span>/</span> main</div><div class="status is-lost"><i></i> Нет связи · кадр от 13:00:22</div></div>
+    <div class="top"><div class="logo"><span class="mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>Βyb<b>Ai</b></span></div><div class="header-info">receipt-bot <span>/</span> main</div><div class="status is-error"><i></i> Ошибка журнала · строка 17</div></div>
+    <div class="cap" style="max-width:none">демо · живое подключение · связь потеряна, на экране последний кадр · повреждённая строка журнала</div>
+  </section>
+
+  <section class="block">
+    <h2>08 / Строка CLI</h2>
+    <div class="log"><b>▸ pytest</b> tests/test_registry.py::test_duplicate <span class="right">stdout · receipt-bot</span></div>
+    <div class="log"><b>▸ pytest</b> tests/test_registry.py::test_duplicate · ещё 2 <span class="right">stdout · receipt-bot</span></div>
+    <div class="log is-stale"><b>▸ pytest</b> tests/test_registry.py::test_duplicate <span class="right">нет событий 60 с</span></div>
+    <div class="log is-done"><b>■ pytest</b> завершён · 10 пройдено · код 0 <span class="right">stdout · receipt-bot</span></div>
+    <div class="log is-failed"><b>■ pytest</b> завершён · 9 пройдено, 1 упал · код 1 <span class="right">stdout · receipt-bot</span></div>
+    <div class="log is-stale"><b>○</b> Ожидание прогона <span class="right">stdout · receipt-bot</span></div>
+    <div class="cap" style="max-width:none">одна проверка · параллельные проверки · нет сигнала · успех · ошибка · прогона ещё не было</div>
+  </section>
+
+  <section class="block">
+    <h2>09 / Камера</h2>
+    <div class="zoom"><span>−</span><span>67%</span><span>+</span><span>Вписать</span></div>
+    <div class="cap">при открытии схема вписана в холст; «Вписать» возвращает этот вид</div>
+  </section>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,152 @@
+﻿<!doctype html>
+<html lang="ru">
+<meta charset="UTF-8">
+<title>ΒybAi — Регистрация чеков</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Контрольный кадр: журнал demo-001 по seq=16 включительно, окно 1920 × 1080, камера 100%. */
+html, body { width: 1920px; height: 1080px; overflow: hidden; }
+.app { display: grid; grid-template-columns: 1480px var(--tests-w); height: 948px; }
+.workspace { border-right: 1px solid var(--rule-strong); position: relative; display: flex; flex-direction: column; }
+.board { flex: 1; }
+</style>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-input" viewBox="0 0 16 16"><path d="M2.5 2.5h4v4h-4zM9.5 2.5h4v4h-4zM2.5 9.5h4v4h-4zM9.5 9.5h1.5v1.5H9.5zM12 12h1.5v1.5H12z"/></symbol>
+  <symbol id="i-http" viewBox="0 0 16 16"><path d="M2 5.5h11M10.5 3 13 5.5 10.5 8M14 10.5H3M5.5 8 3 10.5 5.5 13"/></symbol>
+  <symbol id="i-logic" viewBox="0 0 16 16"><path d="M4.5 2v12M4.5 9h3a4 4 0 0 0 4-4V2"/></symbol>
+  <symbol id="i-database" viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/></symbol>
+  <symbol id="i-file" viewBox="0 0 16 16"><path d="M4 2h5l3 3v9H4zM9 2v3h3"/></symbol>
+</defs></svg>
+
+<div class="top">
+  <div class="logo"><span class="mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span>Βyb<b>Ai</b></span></div>
+  <div class="header-info">receipt-bot <span>/</span> main</div>
+  <div class="status"><i></i> CLI · демопрогон</div>
+</div>
+
+<div class="app">
+  <main class="workspace">
+    <div class="mast">
+      <div class="label">Telegram-бот / Схема проекта</div>
+      <div class="mastmain"><h1>Регистрация чеков</h1><p>«Чай ноября» · 1–30 ноября 2026</p></div>
+    </div>
+
+    <div class="board">
+      <svg class="grid" aria-hidden="true"><defs><pattern id="g" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8"/></pattern></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>
+
+      <svg class="wires">
+        <defs>
+          <marker id="arr" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" orient="auto" refX="7" refY="4"><polygon class="arrow" points="0,0 8,4 0,8"/></marker>
+          <marker id="arr-run" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" orient="auto" refX="7" refY="4"><polygon class="arrow is-running" points="0,0 8,4 0,8"/></marker>
+          <marker id="arr-exc" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" orient="auto" refX="7" refY="4"><polygon class="arrow exception" points="0,0 8,4 0,8"/></marker>
+        </defs>
+        <g marker-end="url(#arr)">
+          <path d="M240 397H295"/>
+          <path d="M509 397H571"/>
+          <path d="M796 397H861"/>
+          <path d="M1086 370H1121V261H1166"/>
+          <path class="config" d="M546 107H682V310"/>
+        </g>
+        <g marker-end="url(#arr-run)">
+          <path class="is-running" d="M1086 436H1121V467H1166"/>
+        </g>
+        <g marker-end="url(#arr-exc)">
+          <path class="exception" d="M135 533V677H295"/>
+          <path class="exception" d="M684 533V677H861"/>
+        </g>
+        <text x="574" y="96">условия акции</text>
+        <text x="810" y="385">да</text>
+        <text x="704" y="665">дата / товар</text>
+        <text x="151" y="665">QR не читается</text>
+        <text x="1130" y="365">id</text>
+        <text x="1130" y="422" class="is-running">повтор</text>
+      </svg>
+
+      <article class="node" style="left:30px;top:311px;width:210px">
+        <div class="tech"><span class="ico"><svg><use href="#i-input"/></svg></span>aiogram · ZXing-C++</div>
+        <h2>Принять чек</h2>
+        <p>Скачать фото из чата и считать реквизиты из QR-кода.</p>
+        <footer>ФН / ФД / ФП</footer>
+      </article>
+
+      <article class="node" style="left:296px;top:311px;width:213px">
+        <div class="tech"><span class="ico"><svg><use href="#i-http"/></svg></span>HTTPX · API чеков</div>
+        <h2>Получить покупку</h2>
+        <p>Запросить у провайдера дату покупки и товарные позиции.</p>
+        <footer>date, items[]</footer>
+      </article>
+
+      <article class="node" style="left:572px;top:311px;width:224px">
+        <div class="tech"><span class="ico"><svg><use href="#i-logic"/></svg></span>Python · rules.py</div>
+        <h2>Проверить условия</h2>
+        <p>Дата входит в период акции и в чеке есть чай «Лист»?</p>
+        <footer>date ∈ period  ∧  SKU</footer>
+      </article>
+
+      <article class="node is-running" style="left:862px;top:311px;width:224px">
+        <div class="tech"><span class="ico"><svg><use href="#i-database"/></svg></span>PostgreSQL</div>
+        <h2>Записать заявку</h2>
+        <p>Одна запись на чек в пределах акции. Конфликт ключа означает повтор.</p>
+        <footer>INSERT … ON CONFLICT</footer>
+      </article>
+
+      <section class="file" style="left:286px;top:24px;width:260px">
+        <header><svg><use href="#i-file"/></svg>promo.yaml</header>
+<pre><b>id:</b> tea_nov_2026
+<b>from:</b> 2026-11-01
+<b>through:</b> 2026-11-30
+<b>products:</b> [LIST_TEA]
+<b>entries_per_receipt:</b> 1</pre>
+      </section>
+
+      <div class="term" style="left:1167px;top:216px;width:271px"><small>Telegram · sendMessage</small><h3>Чек зарегистрирован</h3><p>Заявка №247</p></div>
+      <div class="term is-running" style="left:1167px;top:424px;width:271px"><small>Telegram · sendMessage</small><h3>Уже зарегистрирован</h3><p>Вторая заявка не создаётся.</p></div>
+      <div class="term exception" style="left:862px;top:630px;width:278px"><small>Отказ по правилам</small><h3>Сообщить причину</h3><p>«В чеке нет акционного чая».</p></div>
+      <div class="term exception" style="left:296px;top:630px;width:256px"><small>Ошибка чтения</small><h3>Запросить новое фото</h3><p>QR-код нужен целиком.</p></div>
+
+      <div class="zoom"><span>−</span><span>100%</span><span>+</span><span>Вписать</span></div>
+    </div>
+  </main>
+
+  <aside class="aside">
+    <header class="aside-title"><h2>Тесты</h2><span class="chip">7 из 10 пройдено</span></header>
+    <div class="progress"><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="passed"></i><i class="running"></i><i></i><i></i></div>
+
+    <section class="test">
+      <header><strong>test_receipt.py</strong><b>3 / 3</b></header>
+      <div class="row"><span>Читаемый QR-код</span><small class="passed">✓</small></div>
+      <div class="row"><span>Размытое фото</span><small class="passed">✓</small></div>
+      <div class="row"><span>API вернул товары и дату</span><small class="passed">✓</small></div>
+    </section>
+    <div class="between">↓ <span>Реквизиты чека</span></div>
+
+    <section class="test">
+      <header><strong>test_rules.py</strong><b>3 / 3</b></header>
+      <div class="row"><span>Дата в периоде акции</span><small class="passed">✓</small></div>
+      <div class="row"><span>Акционный товар в чеке</span><small class="passed">✓</small></div>
+      <div class="row"><span>Только кофе → отказ</span><small class="passed">✓</small></div>
+    </section>
+    <div class="between">↓ <span>Допущенный чек</span></div>
+
+    <section class="test is-running">
+      <header><strong>test_registry.py</strong><b>1 / 2</b></header>
+      <div class="row"><span>Новая заявка</span><small class="passed">✓</small></div>
+      <div class="row"><span>Повторный чек</span><small class="running"><i></i> Идёт</small></div>
+    </section>
+    <div class="between">↓ <span>Статус заявки</span></div>
+
+    <section class="test">
+      <header><strong>test_reply.py</strong><b>0 / 2</b></header>
+      <div class="row"><span>Подтверждение</span><small class="waiting"><i></i> Ожидает</small></div>
+      <div class="row"><span>Ответ о повторе</span><small class="waiting"><i></i> Ожидает</small></div>
+    </section>
+  </aside>
+</div>
+
+<div class="log"><b>▸ pytest</b> tests/test_registry.py::test_duplicate <span class="right">stdout · receipt-bot</span></div>
+
+</body>
+</html>

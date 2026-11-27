@@ -1,0 +1,22 @@
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":1,"at":"2026-11-18T10:00:00.000Z","type":"run.started","tool":"pytest","branch":"main"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":2,"at":"2026-11-18T10:00:01.000Z","type":"test.started","testId":"receipt.read"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":3,"at":"2026-11-18T10:00:03.000Z","type":"test.finished","testId":"receipt.read","status":"passed"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":4,"at":"2026-11-18T10:00:04.000Z","type":"test.started","testId":"receipt.blur"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":5,"at":"2026-11-18T10:00:06.000Z","type":"test.finished","testId":"receipt.blur","status":"passed"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":6,"at":"2026-11-18T10:00:07.000Z","type":"test.started","testId":"receipt.items"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":7,"at":"2026-11-18T10:00:09.000Z","type":"test.finished","testId":"receipt.items","status":"passed"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":8,"at":"2026-11-18T10:00:10.000Z","type":"test.started","testId":"rules.date"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":9,"at":"2026-11-18T10:00:12.000Z","type":"test.finished","testId":"rules.date","status":"passed"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":10,"at":"2026-11-18T10:00:13.000Z","type":"test.started","testId":"rules.sku"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":11,"at":"2026-11-18T10:00:15.000Z","type":"test.finished","testId":"rules.sku","status":"passed"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":12,"at":"2026-11-18T10:00:16.000Z","type":"test.started","testId":"rules.coffee"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":13,"at":"2026-11-18T10:00:18.000Z","type":"test.finished","testId":"rules.coffee","status":"passed"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":14,"at":"2026-11-18T10:00:19.000Z","type":"test.started","testId":"registry.new"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":15,"at":"2026-11-18T10:00:21.000Z","type":"test.finished","testId":"registry.new","status":"passed"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":16,"at":"2026-11-18T10:00:22.000Z","type":"test.started","testId":"registry.duplicate"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":17,"at":"2026-11-18T10:00:28.000Z","type":"test.finished","testId":"registry.duplicate","status":"passed"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":18,"at":"2026-11-18T10:00:29.000Z","type":"test.started","testId":"reply.ok"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":19,"at":"2026-11-18T10:00:31.000Z","type":"test.finished","testId":"reply.ok","status":"passed"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":20,"at":"2026-11-18T10:00:32.000Z","type":"test.started","testId":"reply.duplicate_reply"}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":21,"at":"2026-11-18T10:00:34.000Z","type":"test.finished","testId":"reply.duplicate_reply","status":"failed","message":"Ожидалось «Этот чек уже зарегистрирован». Получено «Чек зарегистрирован»."}
+{"v":1,"projectId":"receipt-bot","runId":"demo-001","seq":22,"at":"2026-11-18T10:00:35.000Z","type":"run.finished","exitCode":1}

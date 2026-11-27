@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 1,
+  "id": "receipt-bot",
+  "branch": "main",
+  "title": "Регистрация чеков",
+  "context": "Telegram-бот / Схема проекта",
+  "subtitle": "«Чай ноября» · 1–30 ноября 2026",
+  "canvas": {
+    "width": 1480,
+    "height": 800
+  },
+  "nodes": [
+    {
+      "id": "receive",
+      "kind": "action",
+      "x": 30,
+      "y": 311,
+      "width": 210,
+      "height": 222,
+      "title": "Принять чек",
+      "tech": "aiogram · ZXing-C++",
+      "icon": "input",
+      "body": "Скачать фото из чата и считать реквизиты из QR-кода.",
+      "output": "ФН / ФД / ФП"
+    },
+    {
+      "id": "purchase",
+      "kind": "action",
+      "x": 296,
+      "y": 311,
+      "width": 213,
+      "height": 222,
+      "title": "Получить покупку",
+      "tech": "HTTPX · API чеков",
+      "icon": "http",
+      "body": "Запросить у провайдера дату покупки и товарные позиции.",
+      "output": "date, items[]"
+    },
+    {
+      "id": "promo",
+      "kind": "config",
+      "x": 286,
+      "y": 24,
+      "width": 260,
+      "height": 181,
+      "title": "promo.yaml",
+      "tech": "YAML",
+      "body": "Условия акции «Чай ноября»",
+      "source": "promo.yaml"
+    },
+    {
+      "id": "rules",
+      "kind": "action",
+      "x": 572,
+      "y": 311,
+      "width": 224,
+      "height": 222,
+      "title": "Проверить условия",
+      "tech": "Python · rules.py",
+      "icon": "logic",
+      "body": "Дата входит в период акции и в чеке есть чай «Лист»?",
+      "output": "date ∈ period ∧ SKU"
+    },
+    {
+      "id": "registry",
+      "kind": "action",
+      "x": 862,
+      "y": 311,
+      "width": 224,
+      "height": 222,
+      "title": "Записать заявку",
+      "tech": "PostgreSQL",
+      "icon": "database",
+      "body": "Одна запись на чек в пределах акции. Конфликт ключа означает повтор.",
+      "output": "INSERT … ON CONFLICT"
+    },
+    {
+      "id": "new",
+      "kind": "outcome",
+      "x": 1167,
+      "y": 216,
+      "width": 271,
+      "height": 107,
+      "title": "Чек зарегистрирован",
+      "tech": "Telegram · sendMessage",
+      "body": "Заявка №247",
+      "output": ""
+    },
+    {
+      "id": "duplicate",
+      "kind": "outcome",
+      "x": 1167,
+      "y": 424,
+      "width": 271,
+      "height": 107,
+      "title": "Уже зарегистрирован",
+      "tech": "Telegram · sendMessage",
+      "body": "Вторая заявка не создаётся.",
+      "output": ""
+    },
+    {
+      "id": "retry",
+      "kind": "outcome",
+      "x": 296,
+      "y": 630,
+      "width": 256,
+      "height": 107,
+      "title": "Запросить новое фото",
+      "tech": "Ошибка чтения",
+      "body": "QR-код нужен целиком.",
+      "output": ""
+    },
+    {
+      "id": "reject",
+      "kind": "outcome",
+      "x": 862,
+      "y": 630,
+      "width": 278,
+      "height": 107,
+      "title": "Сообщить причину",
+      "tech": "Отказ по правилам",
+      "body": "«В чеке нет акционного чая».",
+      "output": ""
+    }
+  ],
+  "edges": [
+    {
+      "id": "receive-purchase",
+      "from": "receive",
+      "to": "purchase",
+      "role": "default",
+      "label": "",
+      "points": [
+        [
+          240,
+          397
+        ],
+        [
+          296,
+          397
+        ]
+      ]
+    },
+    {
+      "id": "purchase-rules",
+      "from": "purchase",
+      "to": "rules",
+      "role": "default",
+      "label": "",
+      "points": [
+        [
+          509,
+          397
+        ],
+        [
+          572,
+          397
+        ]
+      ]
+    },
+    {
+      "id": "promo-rules",
+      "from": "promo",
+      "to": "rules",
+      "role": "config",
+      "label": "условия акции",
+      "points": [
+        [
+          546,
+          107
+        ],
+        [
+          682,
+          107
+        ],
+        [
+          682,
+          311
+        ]
+      ]
+    },
+    {
+      "id": "rules-registry",
+      "from": "rules",
+      "to": "registry",
+      "role": "default",
+      "label": "да",
+      "points": [
+        [
+          796,
+          397
+        ],
+        [
+          862,
+          397
+        ]
+      ]
+    },
+    {
+      "id": "registry-new",
+      "from": "registry",
+      "to": "new",
+      "role": "default",
+      "label": "id",
+      "points": [
+        [
+          1086,
+          370
+        ],
+        [
+          1121,
+          370
+        ],
+        [
+          1121,
+          261
+        ],
+        [
+          1167,
+          261
+        ]
+      ]
+    },
+    {
+      "id": "registry-duplicate",
+      "from": "registry",
+      "to": "duplicate",
+      "role": "alternate",
+      "label": "повтор",
+      "points": [
+        [
+          1086,
+          436
+        ],
+        [
+          1121,
+          436
+        ],
+        [
+          1121,
+          467
+        ],
+        [
+          1167,
+          467
+        ]
+      ]
+    },
+    {
+      "id": "receive-retry",
+      "from": "receive",
+      "to": "retry",
+      "role": "exception",
+      "label": "QR не читается",
+      "points": [
+        [
+          135,
+          533
+        ],
+        [
+          135,
+          677
+        ],
+        [
+          296,
+          677
+        ]
+      ]
+    },
+    {
+      "id": "rules-reject",
+      "from": "rules",
+      "to": "reject",
+      "role": "exception",
+      "label": "дата / товар",
+      "points": [
+        [
+          684,
+          533
+        ],
+        [
+          684,
+          677
+        ],
+        [
+          862,
+          677
+        ]
+      ]
+    }
+  ]
+}
