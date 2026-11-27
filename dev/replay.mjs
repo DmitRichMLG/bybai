@@ -2,6 +2,7 @@
 //
 //   node dev/replay.mjs fixtures/demo.jsonl [--speed 4] [--until 48] [--port 4517]
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const [file, ...args] = process.argv.slice(2);
 const opt = (name, fallback) => (args.includes(name) ? Number(args[args.indexOf(name) + 1]) : fallback);
@@ -14,7 +15,11 @@ if (!file) {
   process.exit(1);
 }
 
-const rows = readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean).map((s) => JSON.parse(s)).slice(0, until);
+// {demo} в записи — папка проекта рядом с ней: fixtures/receipt-bot.jsonl → fixtures/receipt-bot.
+// Так у демо есть настоящая папка со схемой .bybai/map.json.
+const demo = resolve(file.replace(/\.jsonl$/, '')).replace(/\\/g, '/');
+const rows = readFileSync(file, 'utf8').replaceAll('{demo}', demo)
+  .split(/\r?\n/).filter(Boolean).map((s) => JSON.parse(s)).slice(0, until);
 
 for (const row of rows) {
   await new Promise((r) => setTimeout(r, row.dt / speed));

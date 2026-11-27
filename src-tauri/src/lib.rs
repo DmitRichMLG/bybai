@@ -20,6 +20,7 @@ const TRIM_OTHER: usize = 65536;
 const HEAD: usize = 300;
 const BACKLOG: usize = 5000;
 const BODY_LIMIT: u64 = 16 << 20;
+const MAP_LIMIT: u64 = 512 << 10;
 
 /// Принятые конверты: счётчик и последние BACKLOG штук.
 #[derive(Default)]
@@ -159,6 +160,16 @@ fn listener_error(error: tauri::State<'_, ListenerError>) -> Option<String> {
     error.0.clone()
 }
 
+/// Схема проекта, которую написал агент: <cwd>/.bybai/map.json. None — файла нет или он слишком велик.
+#[tauri::command]
+fn read_map(cwd: String) -> Option<String> {
+    let file = std::path::Path::new(&cwd).join(".bybai").join("map.json");
+    if std::fs::metadata(&file).ok()?.len() > MAP_LIMIT {
+        return None;
+    }
+    std::fs::read_to_string(file).ok()
+}
+
 pub fn run() {
     let app = tauri::Builder::default()
         // Плагин одного экземпляра должен идти первым: повторный запуск показывает уже открытое окно.
@@ -184,7 +195,7 @@ pub fn run() {
             app.manage(Home(home));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![backlog, hooks_status, hooks_set, listener_error])
+        .invoke_handler(tauri::generate_handler![backlog, hooks_status, hooks_set, listener_error, read_map])
         .build(tauri::generate_context!())
         .expect("приложение не запустилось");
     app.run(|app, event| {

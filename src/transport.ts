@@ -73,3 +73,13 @@ export async function setOnTop(on: boolean): Promise<void> {
   const { getCurrentWindow } = await import('@tauri-apps/api/window');
   await getCurrentWindow().setAlwaysOnTop(on);
 }
+
+/** Текст файла .bybai/map.json из папки проекта или null, если его нет. */
+export async function loadMap(cwd: string): Promise<string | null> {
+  if (inTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<string | null>('read_map', { cwd });
+  }
+  const res = await fetch(`${BRIDGE}/map?cwd=${encodeURIComponent(cwd)}`);
+  return res.ok ? res.text() : null;
+}

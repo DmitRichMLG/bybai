@@ -1,0 +1,83 @@
+{
+  "title": "Mini shop",
+  "groups": [
+    { "id": "client", "label": "Клиент" },
+    { "id": "server", "label": "Сервер" },
+    { "id": "data", "label": "Данные" },
+    { "id": "external", "label": "Внешние сервисы" }
+  ],
+  "nodes": [
+    {
+      "id": "web",
+      "kind": "client",
+      "label": "Витрина",
+      "tech": "HTML, JS (ES modules)",
+      "note": "Загружает список товаров и отправляет заказ с токеном оплаты на сервер.",
+      "group": "client",
+      "files": ["src/web/**"]
+    },
+    {
+      "id": "api",
+      "kind": "service",
+      "label": "API",
+      "tech": "Express 5",
+      "note": "Раздаёт статику и эндпоинты товаров и заказов; создаёт заказ и запускает списание.",
+      "group": "server",
+      "files": ["src/api/server.js"],
+      "run": ["npm run dev"]
+    },
+    {
+      "id": "payments",
+      "kind": "service",
+      "label": "Платежи",
+      "tech": "Stripe SDK",
+      "note": "Списывает сумму заказа в USD по токену оплаты через Stripe.",
+      "group": "server",
+      "files": ["src/api/payments.js"]
+    },
+    {
+      "id": "orders",
+      "kind": "service",
+      "label": "Заказы и товары",
+      "tech": "node-postgres (pg)",
+      "note": "Читает товары из БД и создаёт записи заказов через пул соединений.",
+      "group": "server",
+      "files": ["src/db/**"]
+    },
+    {
+      "id": "tests",
+      "kind": "infra",
+      "label": "Тесты",
+      "tech": "Vitest",
+      "note": "Автотесты проекта; сейчас содержат только заглушку без проверок заказов.",
+      "group": "server",
+      "files": ["tests/**"],
+      "run": ["npm test"]
+    },
+    {
+      "id": "db",
+      "kind": "data",
+      "label": "PostgreSQL",
+      "tech": "PostgreSQL",
+      "note": "Хранит таблицы products и orders.",
+      "group": "data",
+      "files": []
+    },
+    {
+      "id": "stripe",
+      "kind": "external",
+      "label": "Stripe",
+      "tech": "Stripe API",
+      "note": "Внешний платёжный провайдер, который проводит списание по токену.",
+      "group": "external",
+      "files": []
+    }
+  ],
+  "edges": [
+    { "from": "web", "to": "api", "label": "HTTP JSON" },
+    { "from": "api", "to": "orders", "label": "товары, заказ" },
+    { "from": "api", "to": "payments", "label": "charge(total)" },
+    { "from": "orders", "to": "db", "label": "SQL" },
+    { "from": "payments", "to": "stripe", "label": "charges.create" }
+  ]
+}

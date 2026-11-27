@@ -1,22 +1,25 @@
+import type { Ref } from 'preact';
+import { Icon } from '../map/icons';
 import type { Session } from '../model/types';
 import { project } from '../model/select';
 import type { Agent, HookStatus } from '../transport';
 
 const AGENT = { claude: 'Claude Code', codex: 'Codex' } as const;
-const STATE = { running: 'работает', waiting: 'ждёт вас', idle: 'ход завершён', closed: 'сессия закрыта' } as const;
 
 interface Props {
   sessions: Session[];
   selected?: Session;
-  link: boolean;
   hooks: HookStatus | null;        // null — подключением управлять нельзя (режим разработки)
   onTop: boolean;
+  query: string;
+  searchRef: Ref<HTMLInputElement>;
+  onQuery: (q: string) => void;
   onSelect: (sid: string) => void;
   onHooks: (agent: Agent, on: boolean) => void;
   onOnTop: (on: boolean) => void;
 }
 
-export function TopBar({ sessions, selected, link, hooks, onTop, onSelect, onHooks, onOnTop }: Props) {
+export function TopBar({ sessions, selected, hooks, onTop, query, searchRef, onQuery, onSelect, onHooks, onOnTop }: Props) {
   return (
     <div class="top">
       <div class="logo">
@@ -27,39 +30,38 @@ export function TopBar({ sessions, selected, link, hooks, onTop, onSelect, onHoo
       <div class="tabs">
         {sessions.map((s) => (
           <button
-            key={s.sid}
+            key={s.sid} title={`${AGENT[s.source]} · ${s.cwd}`}
             class={`tab is-${s.state}${s === selected ? ' is-active' : ''}`}
             onClick={() => onSelect(s.sid)}
           >
-            <i /><b>{s.source}</b> {project(s.cwd)}
+            <i /><b>{project(s.cwd)}</b> {s.source}
           </button>
         ))}
       </div>
 
-      <div class="tools">
-        {hooks && (['claude', 'codex'] as const).map((agent) => (
-          <button
-            key={agent}
-            class={`plug${hooks[agent] ? ' is-on' : ''}`}
-            title={hooks[agent] ? `Отключить ${AGENT[agent]}: убрать хуки ΒybAi из его настроек` : `Подключить ${AGENT[agent]}: добавить хуки ΒybAi в его настройки`}
-            onClick={() => onHooks(agent, !hooks[agent])}
-          >
-            {agent}: {hooks[agent] ? 'подключён' : 'подключить'}
-          </button>
-        ))}
-        {hooks && (
-          <button class={`plug${onTop ? ' is-on' : ''}`} title="Держать окно поверх остальных" onClick={() => onOnTop(!onTop)}>
-            поверх окон
-          </button>
-        )}
-      </div>
+      <label class="search" title="Найти узел на схеме">
+        <Icon name="search" size={15} />
+        <input ref={searchRef} value={query} placeholder="Найти узел" onInput={(e) => onQuery((e.target as HTMLInputElement).value)} />
+        <span class="key">/</span>
+      </label>
 
-      {!link ? (
-        <div class="status is-lost"><i /> Нет связи со слушателем</div>
-      ) : selected ? (
-        <div class={`status is-${selected.state}`}><i /> {AGENT[selected.source]} · {STATE[selected.state]}</div>
-      ) : (
-        <div class="status is-lost"><i /> Нет сессий</div>
+      {hooks && (
+        <div class="tools">
+          {(['claude', 'codex'] as const).map((agent) => (
+            <button
+              key={agent} class={`chip${hooks[agent] ? ' is-on' : ''}`}
+              title={hooks[agent]
+                ? `${AGENT[agent]} подключён. Нажмите, чтобы убрать хуки ΒybAi из его настроек.`
+                : `Подключить ${AGENT[agent]}: добавить хуки ΒybAi в его настройки.`}
+              onClick={() => onHooks(agent, !hooks[agent])}
+            >
+              <i />{agent}
+            </button>
+          ))}
+          <button class={`chip${onTop ? ' is-on' : ''}`} title="Держать окно поверх остальных" onClick={() => onOnTop(!onTop)}>
+            <Icon name="pin" size={15} />
+          </button>
+        </div>
       )}
     </div>
   );

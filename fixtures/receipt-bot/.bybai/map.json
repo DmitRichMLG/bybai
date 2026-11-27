@@ -1,0 +1,34 @@
+{
+  "title": "Бот регистрации чеков",
+  "groups": [
+    { "id": "chat", "label": "Вход" },
+    { "id": "bot", "label": "Бот" },
+    { "id": "outside", "label": "Данные и сервисы" },
+    { "id": "checks", "label": "Проверки" }
+  ],
+  "nodes": [
+    { "id": "telegram", "kind": "client", "label": "Чат в Telegram", "tech": "Bot API", "note": "Пользователь присылает фото чека и получает ответ бота.", "group": "chat" },
+    { "id": "intake", "kind": "service", "label": "Приём чека", "tech": "aiogram", "note": "Принимает фото, ведёт его по шагам обработки и отвечает пользователю.", "group": "bot", "files": ["bot/handlers/**"] },
+    { "id": "qr", "kind": "service", "label": "Чтение QR", "tech": "ZXing-C++", "note": "Достаёт из фото реквизиты чека: ФН, ФД и ФП.", "group": "bot", "files": ["bot/qr.py"] },
+    { "id": "purchase", "kind": "service", "label": "Данные покупки", "tech": "HTTPX", "note": "Запрашивает у провайдера дату покупки и товарные позиции.", "group": "bot", "files": ["bot/receipts.py"] },
+    { "id": "rules", "kind": "service", "label": "Проверка условий", "tech": "Python", "note": "Проверяет, что дата входит в период акции и в чеке есть акционный товар.", "group": "bot", "files": ["bot/rules.py"] },
+    { "id": "registry", "kind": "service", "label": "Регистрация заявки", "tech": "asyncpg", "note": "Записывает заявку и отличает новый чек от повторного.", "group": "bot", "files": ["bot/registry.py"] },
+    { "id": "replies", "kind": "service", "label": "Ответы", "tech": "шаблоны", "note": "Собирает текст ответа: подтверждение, повтор или причина отказа.", "group": "bot", "files": ["bot/replies.py"] },
+    { "id": "provider", "kind": "external", "label": "API чеков", "tech": "провайдер ФНС", "note": "Возвращает содержимое чека по фискальным реквизитам.", "group": "outside" },
+    { "id": "promo", "kind": "files", "label": "Условия акции", "tech": "promo.yaml", "note": "Период акции, список товаров и лимит заявок на чек.", "group": "outside", "files": ["promo.yaml"] },
+    { "id": "db", "kind": "data", "label": "Заявки", "tech": "PostgreSQL", "note": "Одна запись на чек в пределах акции; конфликт ключа означает повтор.", "group": "outside", "files": ["migrations/**"] },
+    { "id": "tests", "kind": "infra", "label": "Тесты", "tech": "pytest", "note": "Проверяют чтение чека, правила, регистрацию и ответы.", "group": "checks", "files": ["tests/**"], "run": ["pytest"] }
+  ],
+  "edges": [
+    { "from": "telegram", "to": "intake", "label": "фото" },
+    { "from": "intake", "to": "qr", "label": "снимок" },
+    { "from": "qr", "to": "purchase", "label": "реквизиты" },
+    { "from": "purchase", "to": "provider", "label": "запрос" },
+    { "from": "purchase", "to": "rules", "label": "покупка" },
+    { "from": "promo", "to": "rules", "label": "условия" },
+    { "from": "rules", "to": "registry", "label": "допущен" },
+    { "from": "rules", "to": "replies", "label": "отказ" },
+    { "from": "registry", "to": "db", "label": "INSERT" },
+    { "from": "registry", "to": "replies", "label": "статус" }
+  ]
+}

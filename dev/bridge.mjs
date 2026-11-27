@@ -7,7 +7,8 @@
 //
 // Запись проигрывает dev/replay.mjs — и сюда, и в окно приложения.
 import { createServer } from 'node:http';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const DEFAULT_PORT = 4517;
 // Длинные строки сворачиваются; то же правило в src-tauri. В tool_input лежат патчи и
@@ -88,6 +89,17 @@ createServer((req, res) => {
     clients.add(res);
     req.on('close', () => clients.delete(res));
     return;
+  }
+  // Схема проекта для страницы: то же, что команда read_map в окне.
+  const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+  if (req.method === 'GET' && url.pathname === '/map' && local(req.headers.origin)) {
+    const cors = { 'Access-Control-Allow-Origin': req.headers.origin };
+    try {
+      const text = readFileSync(join(url.searchParams.get('cwd') ?? '', '.bybai', 'map.json'), 'utf8');
+      return void res.writeHead(200, { ...cors, 'Content-Type': 'application/json; charset=utf-8' }).end(text);
+    } catch {
+      return void res.writeHead(404, cors).end();
+    }
   }
   res.writeHead(404).end();
 }).listen(PORT, '127.0.0.1', () => {
