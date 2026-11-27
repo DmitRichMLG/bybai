@@ -13,11 +13,30 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "ΒybAi",
         "width": 1280,
         "height": 800,
         "minWidth": 720,
         "minHeight": 480
+      },
+      {
+        "label": "hud",
+        "create": false,
+        "title": "ΒybAi",
+        "width": 320,
+        "height": 80,
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "focus": false,
+        "focusable": false,
+        "shadow": false
       }
     ],
     "security": {

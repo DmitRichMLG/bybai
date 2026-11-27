@@ -1,0 +1,238 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>ΒybAi · макеты следующей версии</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<style>
+/* ── Только для страницы макетов ─────────────────────────────────── */
+html, body { height: auto; }
+body { overflow: auto; padding: 28px; display: grid; gap: 34px; justify-items: start; background: #07080a; }
+figure { margin: 0; display: grid; gap: 10px; }
+figcaption { font: var(--fs-2) var(--font-mono); color: var(--ink-3); }
+.shot { position: relative; width: 1280px; height: 800px; overflow: hidden; background: var(--bg); box-shadow: 0 0 0 1px var(--line); }
+.shot .window { height: 800px; }
+.ref { position: absolute; inset: 0; background: url(../reference.png) 0 -105px no-repeat; }
+.ref.is-back { opacity: .45; }
+
+/* ── Кандидаты в components.css ──────────────────────────────────── */
+
+/* Вкладки проектов: полоса прокручивается, «+» всегда на виду */
+.top { gap: 12px; }
+.strip { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 6px; }
+.strip .tabs { position: relative; flex: 0 1 auto; height: 100%; align-items: center; overflow: hidden; }
+.strip .tabs.is-over { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+.tab { flex: none; }
+.tab.is-failed i { background: var(--fail); border-color: var(--fail); }
+.tab.is-saved, .tab.is-saved b { color: var(--ink-3); }
+.tab .x { display: grid; place-items: center; width: 16px; height: 16px; margin: 0 -4px 0 2px; border-radius: 4px; color: var(--ink-3); }
+.scroll { position: absolute; left: 0; right: 36px; bottom: 3px; height: 3px; border-radius: 2px; background: var(--surface); }
+.scroll::after { content: ""; position: absolute; left: 0; width: 71%; height: 100%; border-radius: 2px; background: var(--line-2); }
+.add, .tool { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-1); color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--line); }
+.add:hover, .tool:hover, .add.is-on, .tool.is-on { color: var(--ink); background: var(--surface); }
+
+/* Всплывающая панель: список проектов, настройки */
+.pop { position: absolute; z-index: 6; top: 41px; padding: 6px; border-radius: var(--r-2); background: var(--surface); box-shadow: 0 0 0 1px var(--line), 0 18px 40px rgba(0, 0, 0, .5); }
+.pop h3 { padding: 8px 8px 6px; font: var(--fs-1) var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.pop hr { height: 1px; margin: 6px 0; border: 0; background: var(--line); }
+
+.prow { width: 100%; display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; padding: 6px 8px; border-radius: var(--r-1); text-align: left; }
+.prow:hover, .prow.is-hover { background: var(--surface-2); }
+.prow i { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--ink-3); }
+.prow.is-running i { background: var(--live); border-color: var(--live); }
+.prow.is-waiting i { background: var(--attn); border-color: var(--attn); }
+.prow b { font-weight: 600; color: var(--ink); }
+.prow em { font: normal var(--fs-1) var(--font-mono); color: var(--ink-2); }
+.prow small { grid-column: 2 / 4; font: var(--fs-1) var(--font-mono); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow.is-open b::after { content: "открыт"; margin-left: 8px; font: 400 var(--fs-1) var(--font-mono); color: var(--ink-3); }
+.pact { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: var(--r-1); color: var(--ink-2); }
+.pact:hover { background: var(--surface-2); color: var(--ink); }
+
+/* Настройки */
+.set { display: grid; gap: 4px; }
+.themes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 8px 4px; }
+.theme { display: grid; gap: 5px; padding: 5px 5px 6px; border-radius: var(--r-1); font-size: var(--fs-2); color: var(--ink-2); text-align: left; box-shadow: inset 0 0 0 1px var(--line); }
+.theme.is-on { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.theme .pre { position: relative; height: 44px; border-radius: 4px; background: var(--t-bg); overflow: hidden; }
+.theme .pre::before { content: ""; position: absolute; left: 10px; top: 12px; width: 58px; height: 20px; border-radius: 5px; background: var(--t-sf); box-shadow: inset 0 0 0 1.5px var(--t-live), 0 0 0 3px color-mix(in srgb, var(--t-live) 22%, transparent); }
+.theme .pre::after { content: ""; position: absolute; right: 12px; top: 12px; width: 36px; height: 20px; border-radius: 5px; background: var(--t-sf); }
+.theme span { padding: 0 3px; }
+.crow { display: flex; align-items: center; gap: 10px; padding: 5px 8px; color: var(--ink-2); }
+.crow code { margin-left: auto; font: var(--fs-1) var(--font-mono); color: var(--ink-3); }
+.crow .well { width: 34px; height: 20px; border-radius: 5px; background: var(--c); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); }
+.link { padding: 4px 8px 6px; font-size: var(--fs-2); color: var(--ink-3); text-align: left; }
+.link:hover { color: var(--ink); }
+.sw { margin-left: auto; position: relative; width: 30px; height: 18px; border-radius: 9px; background: var(--line-2); }
+.sw::after { content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink-2); }
+.sw.is-on { background: color-mix(in srgb, var(--live) 35%, var(--surface-2)); }
+.sw.is-on::after { left: 14px; background: var(--live); }
+.seg { display: flex; margin: 2px 8px 6px; padding: 2px; border-radius: var(--r-1); background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
+.seg button { flex: 1; height: 26px; border-radius: 4px; font-size: var(--fs-2); color: var(--ink-3); }
+.seg button.is-on { color: var(--ink); background: var(--surface-2); }
+.corner { margin-left: auto; position: relative; width: 44px; height: 28px; border-radius: 4px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
+.corner i { position: absolute; width: 12px; height: 5px; border-radius: 2px; background: var(--line-2); }
+.corner i:nth-child(1) { left: 4px; top: 4px; }
+.corner i:nth-child(2) { right: 4px; top: 4px; }
+.corner i:nth-child(3) { left: 4px; bottom: 4px; }
+.corner i:nth-child(4) { right: 4px; bottom: 4px; }
+.corner i.is-on { background: var(--live); }
+
+/* Статистика проекта: та же карточка, что у узла */
+.card .tile.is-plain { color: var(--ink-2); background: var(--surface-2); }
+.big { display: flex; align-items: baseline; gap: 8px; font: 600 26px/1 var(--font-ui); letter-spacing: -.02em; }
+.big small { font: var(--fs-1) var(--font-mono); letter-spacing: 0; color: var(--ink-3); }
+.stack { display: flex; gap: 2px; height: 8px; margin: 10px 0 8px; }
+.stack i { border-radius: 2px; }
+.kv { display: grid; grid-template-columns: 10px 1fr auto; column-gap: 8px; align-items: center; font-size: var(--fs-2); color: var(--ink-2); }
+.kv i { width: 8px; height: 8px; border-radius: 2px; }
+.kv em { font: normal var(--fs-2) var(--font-mono); color: var(--ink); }
+.kv.is-plain { grid-template-columns: 1fr auto; }
+.kv.is-fail em { color: var(--fail); }
+.days { display: flex; align-items: flex-end; gap: 4px; height: 44px; }
+.days i { flex: 1; border-radius: 2px 2px 0 0; background: var(--line-2); }
+.days i.is-today { background: var(--ink-2); }
+.days-l { display: flex; justify-content: space-between; margin-top: 4px; font: var(--fs-1) var(--font-mono); color: var(--ink-3); }
+
+/* Нижняя строка: расход агента по выбранному проекту */
+.log .spend { display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: var(--r-1); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); }
+.log .spend b { color: var(--ink); }
+.log .spend.is-on { background: var(--surface); }
+
+/* Плашка поверх экрана: стили настоящие, из components.css; здесь только фон кадра */
+.desk { height: 260px; background: linear-gradient(135deg, #1d2b3f, #2b2440 60%, #3a2a3a); }
+.fake { position: absolute; left: 170px; top: 60px; right: 60px; bottom: -40px; border-radius: 10px 10px 0 0; background: #1e1e1e; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); overflow: hidden; }
+.fake::before { content: ""; display: block; height: 34px; background: #2b2b2b; }
+.fake p { height: 9px; margin: 14px 0 0 28px; border-radius: 3px; background: #3a3d41; }
+.desk .hud { position: absolute; left: 16px; top: 16px; }
+</style>
+</head>
+<body>
+<script>
+const P = {
+  plus: 'M10 4v12M4 10h12', pin: 'M7 2.5h6l-1 5 3 3H5l3-3zM10 10.5v7', close: 'M5 5l10 10M15 5L5 15',
+  command: 'M2.5 4h15v12h-15zM5.5 8l2.5 2-2.5 2M10 12.5h4', edit: 'M3.5 16.5l.8-3.6L13.5 3.7l2.8 2.8-9.2 9.2zM11.7 5.5l2.8 2.8',
+  // новые значки в том же начертании
+  tune: 'M3 6h8.5M15.5 6H17M3 14h1.5M8.5 14H17M13.5 4a2 2 0 100 4 2 2 0 000-4zM6.5 12a2 2 0 100 4 2 2 0 000-4z',
+  chart: 'M4 16.5V10M10 16.5v-13M16 16.5V7',
+  folder: 'M2.5 5h5l2 2h8v9h-15z',
+};
+const icon = (n, s = 18) => `<svg class="icon" viewBox="0 0 20 20" width="${s}" height="${s}"><path d="${P[n]}"/></svg>`;
+const mark = '<span class="mark">' + '<i></i>'.repeat(9) + '</span>';
+
+const TABS = [
+  ['receipt-bot', 'claude', 'is-running is-active'], ['voice-kit', 'claude', 'is-running'], ['notes', 'codex', 'is-waiting'],
+  ['bybai-claude', 'claude', 'is-idle'], ['landing', 'codex', 'is-idle'], ['shop-api', 'claude', 'is-saved'],
+  ['mobile-app', 'codex', 'is-saved'], ['docs-site', 'claude', 'is-saved'],
+];
+const tabs = TABS.map(([name, agent, cls]) =>
+  `<button class="tab ${cls}"><i></i><b>${name}</b> ${agent}${cls.includes('is-active') ? `<span class="x">${icon('close', 11)}</span>` : ''}</button>`).join('');
+
+/** Окно целиком. on — какая кнопка нажата, extra — что открыто поверх. */
+const win = ({ on = '', extra = '', over = '', back = false, spend = false }) => `
+<div class="shot"><div class="window">
+  <div class="top">
+    <div class="logo">${mark}<span>Βyb<b>Ai</b></span></div>
+    <div class="strip">
+      <div class="tabs is-over">${tabs}<span class="scroll"></span></div>
+      <button class="add${on === 'add' ? ' is-on' : ''}" title="Открыть проект">${icon('plus', 15)}</button>
+    </div>
+    <div class="tools">
+      <button class="chip is-on"><i></i>claude</button>
+      <button class="chip is-on"><i></i>codex</button>
+      <button class="chip">${icon('pin', 15)}</button>
+      <button class="tool${on === 'set' ? ' is-on' : ''}" title="Настройки">${icon('tune', 15)}</button>
+    </div>
+  </div>
+  <div class="plan"><span class="bar"><i class="done"></i><i class="done"></i><i class="running"></i><i></i></span><span class="count">3/4</span><span class="now">Проверить тестами</span></div>
+  <main class="stage"><div class="ref${back ? ' is-back' : ''}"></div>${extra}</main>
+  <div class="log is-running">
+    <span class="act">${icon('command', 15)}<span>pytest -q</span></span>
+    <span class="right">
+      <span>схема ≈ <b>1,2 тыс.</b> токенов</span>
+      <span>хуки → агенту: <b>0 токенов</b></span>
+      <button class="spend${spend ? ' is-on' : ''}" title="Статистика проекта">${icon('chart', 14)}агент: <b>184,2 тыс.</b></button>
+    </span>
+  </div>
+</div>${over}</div>`;
+
+const projects = `
+<div class="pop" style="right: 234px; width: 348px;">
+  <h3>Проекты</h3>
+  <button class="prow is-running is-open"><i></i><b>receipt-bot</b><em>184,2 тыс.</em><small>C:\\work\\receipt-bot · сейчас</small></button>
+  <button class="prow is-running is-open"><i></i><b>voice-kit</b><em>96,0 тыс.</em><small>C:\\work\\voice-kit · сейчас</small></button>
+  <button class="prow is-waiting is-open"><i></i><b>notes</b><em>12,9 тыс.</em><small>C:\\work\\notes · ждёт вас</small></button>
+  <button class="prow is-hover"><i></i><b>crm-export</b><em>310,5 тыс.</em><small>D:\\clients\\crm-export · вчера</small></button>
+  <button class="prow"><i></i><b>parser</b><em>41,7 тыс.</em><small>C:\\work\\parser · 3 дня назад</small></button>
+  <button class="prow"><i></i><b>old-shop</b><em>1,24 млн</em><small>D:\\archive\\old-shop · 12 ноября</small></button>
+  <hr>
+  <button class="pact">${icon('folder', 16)}Открыть папку…</button>
+</div>`;
+
+const well = (name, hex) => `<div class="crow">${name}<code>${hex}</code><span class="well" style="--c: ${hex}"></span></div>`;
+const theme = (name, bg, sf, live, on) =>
+  `<button class="theme${on ? ' is-on' : ''}" style="--t-bg: ${bg}; --t-sf: ${sf}; --t-live: ${live}"><span class="pre"></span><span>${name}</span></button>`;
+const settings = `
+<div class="pop set" style="right: 14px; width: 316px;">
+  <h3>Тема</h3>
+  <div class="themes">
+    ${theme('Лайм', '#0f1114', '#1a1e25', '#d7ff5f', true)}${theme('Лёд', '#0c1117', '#151d28', '#7fe3ff')}
+    ${theme('Сирень', '#111018', '#1b1a27', '#b9a2ff')}${theme('Графит', '#101010', '#1c1c1c', '#f2f2f2')}
+  </div>
+  <hr>
+  <h3>Свои цвета</h3>
+  ${well('Холст', '#0f1114')}${well('Работает', '#d7ff5f')}${well('Ошибка', '#ff6464')}${well('Ждёт вас', '#ff9f43')}
+  <button class="link">Сбросить к теме</button>
+  <hr>
+  <h3>Плашка при сворачивании</h3>
+  <div class="crow">Показывать<span class="sw is-on"></span></div>
+  <div class="seg"><button class="is-on">Сквозь клики</button><button>Кликабельная</button></div>
+  <div class="crow">Угол экрана<span class="corner"><i class="is-on"></i><i></i><i></i><i></i></span></div>
+</div>`;
+
+const kv = (c, name, val) => `<div class="kv"><i style="background: ${c}"></i>${name}<em>${val}</em></div>`;
+const plain = (name, val, cls = '') => `<div class="kv is-plain ${cls}">${name}<em>${val}</em></div>`;
+const stats = `
+<aside class="card">
+  <header><span class="tile is-plain">${icon('chart', 20)}</span><div><h2>receipt-bot</h2><small>C:\\work\\receipt-bot</small></div><button class="x">${icon('close', 16)}</button></header>
+  <div class="body">
+    <dl style="margin: 0"><dt>Токены агента</dt><dd>
+      <div class="big">184 200<small>за всё время</small></div>
+      <div class="stack"><i style="flex: 12; background: var(--ink)"></i><i style="flex: 158; background: var(--line-2)"></i><i style="flex: 14; background: var(--ink-3)"></i></div>
+      ${kv('var(--ink)', 'Вход', '12,4 тыс.')}${kv('var(--line-2)', 'Кэш', '158,0 тыс.')}${kv('var(--ink-3)', 'Выход', '13,8 тыс.')}
+    </dd></dl>
+    <dl style="margin: 0"><dt>По агентам</dt><dd>${plain('Claude Code', '151,9 тыс.')}${plain('Codex', '32,3 тыс.')}</dd></dl>
+    <dl style="margin: 0"><dt>Расход ΒybAi</dt><dd>${plain('Схема', '≈ 1,2 тыс.')}${plain('Ответы на хуки', '0')}</dd></dl>
+    <dl style="margin: 0"><dt>Работа</dt><dd>${plain('Сессий', '6')}${plain('Действий', '214')}${plain('Ошибок', '3', 'is-fail')}${plain('Время агента', '2 ч 14 мин')}</dd></dl>
+    <dl style="margin: 0"><dt>По дням</dt><dd>
+      <div class="days"><i style="height: 18%"></i><i style="height: 46%"></i><i style="height: 8%"></i><i style="height: 0"></i><i style="height: 72%"></i><i style="height: 100%"></i><i class="is-today" style="height: 58%"></i></div>
+      <div class="days-l"><span>21 нояб.</span><span>сегодня</span></div>
+    </dd></dl>
+  </div>
+</aside>`;
+
+const hrow = (lamp, name, percent, tok) =>
+  `<div class="hrow is-${lamp}"><i></i><b>${name}</b><span class="num">${percent}</span><span class="num">${tok}</span></div>`;
+const hud = `
+<div class="shot desk">
+  <div class="fake">${[62, 40, 71, 33, 55, 48, 66].map((w) => `<p style="width: ${w}%"></p>`).join('')}</div>
+  <div class="hud">${mark}<div class="rows">
+    ${hrow('run', 'receipt-bot', '50%', '184,2 тыс.')}
+    ${hrow('attn', 'notes', '20%', '12,9 тыс.')}
+    ${hrow('done', 'voice-kit', '100%', '96,0 тыс.')}
+    ${hrow('idle', 'landing', '—', '0')}
+    <div class="hplan"><span>claude <b>5ч 42% · 7д 18%</b></span><span>codex <b>5ч 12% · 7д 31%</b></span></div>
+  </div></div>
+</div>`;
+
+const frame = (id, title, html) => `<figure id="${id}"><figcaption>${title}</figcaption>${html}</figure>`;
+document.body.insertAdjacentHTML('beforeend', [
+  frame('f-main', '1 · Окно: вкладки проектов с прокруткой, «+», настройки; поиска узла нет; справа внизу расход агента по выбранному проекту', win({})),
+  frame('f-projects', '2 · «+»: сохранённые проекты, в том числе из прошлых запусков, и открытие папки', win({ on: 'add', over: projects, back: true })),
+  frame('f-settings', '3 · Настройки: темы, свои цвета, плашка при сворачивании', win({ on: 'set', over: settings, back: true })),
+  frame('f-stats', '4 · Статистика проекта: открывается щелчком по расходу в нижней строке', win({ extra: stats, spend: true })),
+  frame('f-hud', '5 · Плашка поверх всех окон, когда ΒybAi свёрнут: светофор по проектам, процент шагов, токены, расход подписки', hud),
+].join(''));
+</script>
+</body>
+</html>

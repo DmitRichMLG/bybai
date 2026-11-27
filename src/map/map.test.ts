@@ -5,7 +5,8 @@ import { emptyState, reduce } from '../model/reduce';
 import type { State } from '../model/types';
 import { NODE_H, NODE_W, layout } from './layout';
 import { live } from './live';
-import { matcher, parseMap, reach } from './spec';
+import { MAP_FILE, MAP_RULES, isMapCommand, mapCommand } from './prompt';
+import { KINDS, LIMITS, matcher, parseMap, reach } from './spec';
 
 const text = readFileSync('fixtures/receipt-bot/.bybai/map.json', 'utf8');
 const map = parseMap(text).map!;
@@ -173,5 +174,24 @@ describe('схема от настоящего агента', () => {
     expect(real!.nodes.length).toBeGreaterThanOrEqual(6);
     expect(layout(real!).boxes).toHaveLength(real!.nodes.length);
     expect(matcher(real!).file('src/web/cart.js')).toBe('web');
+  });
+});
+
+describe('навык bybmap', () => {
+  it('правила в prompt.md совпадают с проверкой файла', () => {
+    expect(MAP_RULES).toContain(`в файл ${MAP_FILE} `);
+    expect(MAP_RULES).toContain(`kind — одно из: ${KINDS.join(', ')}.`);
+    expect(MAP_RULES).toContain(
+      `label до ${LIMITS.label} символов, tech до ${LIMITS.tech}, note — одно предложение до ${LIMITS.note} символов, label связи до ${LIMITS.edgeLabel}.`,
+    );
+  });
+
+  it('команда своя у каждого агента и узнаётся в запросе', () => {
+    expect(mapCommand('claude')).toBe('/bybmap');
+    expect(mapCommand('codex')).toBe('$bybmap');
+    expect(isMapCommand('/bybmap')).toBe(true);
+    expect(isMapCommand('Составь схему: $bybmap')).toBe(true);
+    expect(isMapCommand('что делает /bybmapper?')).toBe(false);
+    expect(isMapCommand('открой .bybai/map.json')).toBe(false);
   });
 });

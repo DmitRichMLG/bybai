@@ -1,4 +1,4 @@
-// Хуки агентов: что и куда ставим, сохранённый выбор и правка файлов настроек.
+// Хуки и навык агентов: что и куда ставим, сохранённый выбор и правка файлов настроек.
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -7,6 +7,8 @@ use serde_json::{Map, Value, json};
 
 /// По этой подстроке в url или command узнаём свои записи.
 const MARKER: &str = "127.0.0.1:4517/hook/";
+/// А по этой — свою строку состояния Claude Code.
+const STATUS_MARKER: &str = "127.0.0.1:4517/status/";
 
 // ── Codex ────────────────────────────────────────────────────────
 // Файл разбирается строго: в корне допустимы только description и hooks.
@@ -34,6 +36,12 @@ const CLAUDE_EVENTS: &[&str] = &[
 fn claude_entry() -> Value {
     json!({ "type": "http", "url": "http://127.0.0.1:4517/hook/claude", "timeout": 1 })
 }
+// Лимиты подписки Claude Code отдаёт только своей строке состояния. Команда пересылает их окну,
+// а окно возвращает текст строки. Это рисуется в терминале и в контекст модели не попадает.
+const CLAUDE_STATUS: &str = "curl.exe -s -m 1 --noproxy 127.0.0.1 -H Content-Type:application/json --data-binary @- http://127.0.0.1:4517/status/claude";
+fn claude_status() -> Value {
+    json!({ "type": "command", "command": CLAUDE_STATUS })
+}
 
 // ── Выбор пользователя ───────────────────────────────────────────
 
@@ -50,7 +58,7 @@ pub fn status(home: &Path) -> Value {
     json!({ "claude": on("claude"), "codex": on("codex") })
 }
 
-/// Ставит или снимает хуки агента и запоминает выбор. Возвращает новый выбор.
+/// Ставит или снимает хуки и навык агента и запоминает выбор. Возвращает новый выбор.
 pub fn set(home: &Path, agent: &str, on: bool) -> Result<Value, String> {
     apply(home, agent, on)?;
     let mut prefs = status(home);
@@ -59,7 +67,7 @@ pub fn set(home: &Path, agent: &str, on: bool) -> Result<Value, String> {
     Ok(prefs)
 }
 
-/// Ставит (запуск) или снимает (выход) хуки включённых агентов. Сам выбор не меняется.
+/// Ставит (запуск) или снимает (выход) хуки и навык включённых агентов. Сам выбор не меняется.
 pub fn sync(home: &Path, on: bool) {
     let prefs = status(home);
     for agent in ["claude", "codex"] {
@@ -72,21 +80,88 @@ pub fn sync(home: &Path, on: bool) {
 }
 
 fn apply(home: &Path, agent: &str, on: bool) -> Result<(), String> {
-    let (file, events, entry) = match agent {
-        "claude" => (CLAUDE_FILE, CLAUDE_EVENTS, claude_entry()),
-        "codex" => (CODEX_FILE, CODEX_EVENTS, codex_entry()),
+    let (file, events, entry, status) = match agent {
+        "claude" => (CLAUDE_FILE, CLAUDE_EVENTS, claude_entry(), Some(claude_status())),
+        "codex" => (CODEX_FILE, CODEX_EVENTS, codex_entry(), None),
         _ => return Err(format!("Неизвестный агент: {agent}")),
     };
     // components() приводит разделители пути к системным
     let file: PathBuf = home.join(file).components().collect();
-    set_hooks(&file, events, &entry, on)
+    let hooks = set_agent(&file, events, &entry, status.as_ref(), on);
+    // Навык ставится только вслед за хуками, а убирается в любом случае.
+    if on {
+        hooks?;
+        return set_skill(home, agent, true);
+    }
+    hooks.and(set_skill(home, agent, false))
+}
+
+// ── Навык bybmap ──────────────────────────────────────────────
+// Правила схемы агент получает, только когда человек сам вызвал навык: /bybmap в Claude Code,
+// $bybmap в Codex. До вызова в контекст агента не попадает ничего: у Claude Code за это
+// отвечает disable-model-invocation, у Codex — allow_implicit_invocation в agents/openai.yaml.
+const SKILL: &str = "bybmap";
+const SKILL_ABOUT: &str = "Составить схему архитектуры проекта для окна ΒybAi";
+/// Тот же файл читает интерфейс, когда считает стоимость схемы.
+const SKILL_RULES: &str = include_str!("../../src/map/prompt.md");
+const CODEX_POLICY: &str = "policy:\n  allow_implicit_invocation: false\n";
+
+/// Файлы навыка: путь от домашнего каталога и текст. Вложенный файл идёт первым.
+fn skill_files(agent: &str) -> Vec<(PathBuf, String)> {
+    let (root, by_hand_only) = match agent {
+        "codex" => (".codex", ""),
+        _ => (".claude", "disable-model-invocation: true\n"),
+    };
+    let dir = Path::new(root).join("skills").join(SKILL);
+    let skill = format!("---\nname: {SKILL}\ndescription: {SKILL_ABOUT}\n{by_hand_only}---\n\n{SKILL_RULES}");
+    let mut files = Vec::new();
+    if agent == "codex" {
+        files.push((dir.join("agents").join("openai.yaml"), CODEX_POLICY.to_string()));
+    }
+    files.push((dir.join("SKILL.md"), skill));
+    files
+}
+
+/// Кладёт файлы навыка или убирает их. Каталоги уходят следом, только если опустели.
+fn set_skill(home: &Path, agent: &str, on: bool) -> Result<(), String> {
+    for (rel, text) in skill_files(agent) {
+        let file = home.join(&rel);
+        let name = file.display();
+        // от файла вверх до каталога агента, не включая его: …/skills/bybmap[/agents]
+        let dirs = file.ancestors().skip(1).take(rel.components().count() - 2);
+        if on {
+            if let Some(dir) = file.parent() {
+                fs::create_dir_all(dir).map_err(|e| format!("Не удалось создать каталог {}: {e}", dir.display()))?;
+            }
+            fs::write(&file, text).map_err(|e| format!("Не удалось записать {name}: {e}"))?;
+        } else {
+            match fs::remove_file(&file) {
+                Ok(()) => {}
+                Err(e) if e.kind() == ErrorKind::NotFound => continue,
+                Err(e) => return Err(format!("Не удалось удалить {name}: {e}")),
+            }
+            // remove_dir непустой каталог не удалит: чужие навыки остаются на месте
+            for dir in dirs {
+                if fs::remove_dir(dir).is_err() {
+                    break;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 // ── Файл настроек агента ─────────────────────────────────────────
 // Форма одна для обоих: { "hooks": { "<Событие>": [ { "hooks": [ запись, … ] }, … ] } }
 
 /// Добавляет запись в каждое событие или убирает все свои записи. Остальное в файле не меняется.
+#[cfg(test)]
 pub fn set_hooks(file: &Path, events: &[&str], entry: &Value, on: bool) -> Result<(), String> {
+    set_agent(file, events, entry, None, on)
+}
+
+/// То же и строка состояния: ставится, только если своей у человека нет, и убирается, только если она наша.
+fn set_agent(file: &Path, events: &[&str], entry: &Value, status: Option<&Value>, on: bool) -> Result<(), String> {
     let name = file.display();
     let text = match fs::read_to_string(file) {
         Ok(text) => Some(text),
@@ -102,12 +177,24 @@ pub fn set_hooks(file: &Path, events: &[&str], entry: &Value, on: bool) -> Resul
     let Some(settings) = root.as_object_mut() else {
         return Err(format!("{name}: в корне ожидался объект, файл оставлен как есть"));
     };
-    let changed = if on {
+    let mut changed = if on {
         install(settings, events, entry)
             .ok_or_else(|| format!("{name}: раздел hooks устроен непривычно, файл оставлен как есть"))?
     } else {
         uninstall(settings)
     };
+    let ours = |line: &Value| line["command"].as_str().is_some_and(|c| c.contains(STATUS_MARKER));
+    match status {
+        Some(line) if on && !settings.contains_key("statusLine") => {
+            settings.insert("statusLine".into(), line.clone());
+            changed = true;
+        }
+        _ if !on && settings.get("statusLine").is_some_and(ours) => {
+            settings.shift_remove("statusLine");
+            changed = true;
+        }
+        _ => {}
+    }
     let emptied = !on && settings.is_empty();
     if !changed {
         return Ok(());
@@ -402,14 +489,21 @@ mod tests {
             assert!(installed.contains(&format!("\"{event}\"")), "{event}");
         }
         assert_eq!(installed.matches(MARKER).count(), CLAUDE_EVENTS.len());
+        // навык лежит рядом с хуками; сам Claude Code его не вызывает
+        let skill = file.with_file_name("skills").join(SKILL).join("SKILL.md");
+        assert_eq!(
+            read(&skill),
+            format!("---\nname: bybmap\ndescription: {SKILL_ABOUT}\ndisable-model-invocation: true\n---\n\n{SKILL_RULES}")
+        );
 
-        // выход снимает хуки, выбор остаётся; запуск ставит их снова.
+        // выход снимает хуки и навык, выбор остаётся; запуск ставит их снова.
         // Файл создали мы сами, поэтому без хуков он исчезает, а копии нет.
         sync(&home.0, false);
-        assert!(!file.exists());
+        assert!(names(file.parent().unwrap()).is_empty());
         assert_eq!(status(&home.0), json!({ "claude": true, "codex": false }));
         sync(&home.0, true);
         assert_eq!(read(&file), installed);
+        assert!(skill.exists());
 
         assert_eq!(set(&home.0, "claude", false).unwrap(), json!({ "claude": false, "codex": false }));
         assert!(names(file.parent().unwrap()).is_empty());
@@ -459,10 +553,54 @@ mod tests {
         }
         let foreign: Value = serde_json::from_str(foreign).unwrap();
         assert_eq!(installed["hooks"]["PreToolUse"], json!([foreign, { "hooks": [codex_entry()] }]));
+        // навык Codex: без ключа Claude Code, неявный вызов запрещён соседним файлом
+        let skill = file.with_file_name("skills").join(SKILL);
+        let text = read(&skill.join("SKILL.md"));
+        assert!(text.starts_with("---\nname: bybmap\ndescription: ") && text.ends_with(SKILL_RULES));
+        assert!(!text.contains("disable-model-invocation"));
+        assert_eq!(read(&skill.join("agents").join("openai.yaml")), CODEX_POLICY);
 
         assert_eq!(set(&home.0, "codex", false).unwrap(), json!({ "claude": false, "codex": false }));
         assert_eq!(read(&file), before);
+        assert_eq!(names(file.parent().unwrap()), ["hooks.json", "hooks.json.bybai-backup"]);
         assert!(!home.0.join(".claude").exists());
+    }
+
+    #[test]
+    fn skill_keeps_foreign_and_follows_hooks() {
+        let home = Tmp::new("skill");
+        let skills = home.0.join(".claude").join("skills");
+        let mine = skills.join("mine").join("SKILL.md");
+        fs::create_dir_all(mine.parent().unwrap()).unwrap();
+        fs::write(&mine, "моё").unwrap();
+
+        set(&home.0, "claude", true).unwrap();
+        assert_eq!(names(&skills), [SKILL, "mine"]);
+        // настройки испортили, пока окно открыто: хуки снять нельзя, но навык уходит
+        fs::write(home.0.join(".claude").join("settings.json"), "не JSON").unwrap();
+        assert!(set(&home.0, "claude", false).is_err());
+        assert_eq!(names(&skills), ["mine"]);
+        assert_eq!(read(&mine), "моё");
+        // и рядом с испорченными настройками навык не ставится
+        assert!(set(&home.0, "claude", true).is_err());
+        assert_eq!(names(&skills), ["mine"]);
+    }
+
+    #[test]
+    fn status_line_is_set_only_when_free() {
+        let home = Tmp::new("status");
+        let file = home.0.join(".claude").join("settings.json");
+        set(&home.0, "claude", true).unwrap();
+        assert_eq!(serde_json::from_str::<Value>(&read(&file)).unwrap()["statusLine"], claude_status());
+        set(&home.0, "claude", false).unwrap();
+        assert!(!file.exists());
+
+        // своя строка состояния у человека: не заменяем и не убираем
+        let before = write(&file, r#"{"statusLine":{"type":"command","command":"my-line.sh"}}"#);
+        set(&home.0, "claude", true).unwrap();
+        assert_eq!(serde_json::from_str::<Value>(&read(&file)).unwrap()["statusLine"]["command"], "my-line.sh");
+        set(&home.0, "claude", false).unwrap();
+        assert_eq!(read(&file), before);
     }
 
     #[test]

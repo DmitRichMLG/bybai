@@ -11,7 +11,6 @@ interface Props {
   live: Live;
   focus: string | null;
   trace: Trace;
-  found: Set<string> | null;     // узлы, подошедшие под поиск
   onFocus: (id: string | null) => void;
 }
 
@@ -19,7 +18,7 @@ const clamp = (k: number) => Math.min(2, Math.max(0.25, k));
 /** Preact 11 не дописывает единицы к числам в style. */
 const px = (n: number) => `${n}px`;
 
-export function Canvas({ map, live, focus, trace, found, onFocus }: Props) {
+export function Canvas({ map, live, focus, trace, onFocus }: Props) {
   const lay = useMemo(() => layout(map), [map]);
   const box = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
@@ -83,18 +82,17 @@ export function Canvas({ map, live, focus, trace, found, onFocus }: Props) {
     setDragging(false);
   };
 
-  // Что остаётся ярким: найденное поиском, либо фокус с соседями или со всей цепочкой.
+  // Что остаётся ярким: фокус с соседями или со всей цепочкой.
   const strong = useMemo(() => {
-    if (found) return found;
     if (!focus) return null;
     const set = trace
       ? reach(map, focus, trace)
       : new Set(map.edges.flatMap((e) => (e.from === focus ? [e.to] : e.to === focus ? [e.from] : [])));
     set.add(focus);
     return set;
-  }, [map, focus, trace, found]);
+  }, [map, focus, trace]);
   const wireOn = (from: string, to: string) =>
-    !!strong && !found && strong.has(from) && strong.has(to) && (trace ? true : from === focus || to === focus);
+    !!strong && strong.has(from) && strong.has(to) && (trace ? true : from === focus || to === focus);
 
   return (
     <div

@@ -32,6 +32,9 @@ const PATHS = {
   copy: 'M7 7h9.500v10H7zM4 13.500h-.500v-11H13V4',
   close: 'M5 5l10 10M15 5L5 15',
   check: 'M4 10.500l4 4 8-9',
+  tune: 'M3 6h8.500M15.500 6H17M3 14h1.500M8.500 14H17M13.500 4a2 2 0 100 4 2 2 0 000-4zM6.500 12a2 2 0 100 4 2 2 0 000-4z',
+  chart: 'M4 16.500V10M10 16.500v-13M16 16.500V7',
+  folder: 'M2.500 5h5l2 2h8v9h-15z',
 } as const;
 
 export type IconName = keyof typeof PATHS;

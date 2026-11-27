@@ -106,6 +106,27 @@ export const current = (s: Session): Action | undefined =>
 
 export const turnActions = (s: Session): Action[] => s.actions.filter((a) => a.turn === s.turn);
 
+/** Фонарь плашки: работа не начата, идёт, нужен человек (ждёт или ошибка), готово. */
+export type Lamp = 'idle' | 'run' | 'attn' | 'done';
+
+export function lamp(s: Session | undefined): Lamp {
+  if (!s || s.turn === 0) return 'idle';
+  if (s.state === 'running') return 'run';
+  if (s.state === 'waiting') return 'attn';
+  const acts = turnActions(s);
+  return acts[acts.length - 1]?.status === 'failed' ? 'attn' : 'done';
+}
+
+/** Доля выполненных шагов плана в процентах; null — плана нет. */
+export function progress(s: Session | undefined): number | null {
+  const steps = s?.steps ?? [];
+  return steps.length ? Math.round((steps.filter((x) => x.status === 'done').length / steps.length) * 100) : null;
+}
+
+/** Сессия, которую показываем за проект: живая и самая недавняя. */
+export const latest = (sessions: Session[]): Session | undefined =>
+  [...sessions].sort((a, b) => Number(a.state === 'closed') - Number(b.state === 'closed') || b.lastAt - a.lastAt)[0];
+
 /** 75 → «1:15», 4000 → «1:06:40». */
 export function clock(ms: number): string {
   const sec = Math.max(0, Math.round(ms / 1000));

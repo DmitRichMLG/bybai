@@ -1,95 +1,100 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useLimits, useRoot, useSaved, useSettings, useUsage } from './data';
 import { Icon } from './map/icons';
 import { live } from './map/live';
-import { MAP_FILE, MAP_PROMPT, fixPrompt } from './map/prompt';
+import { MAP_FILE, fixPrompt, mapCommand } from './map/prompt';
 import { matcher, parseMap } from './map/spec';
-import { normalizeClaude } from './model/claude';
-import { normalizeCodex } from './model/codex';
-import { emptyState, reduce } from './model/reduce';
-import type { Envelope, Session, State } from './model/types';
-import { connect, hookStatus, inTauri, listenerError, loadMap, setHooks, setOnTop, type Agent, type HookStatus } from './transport';
+import { latest, project } from './model/select';
+import type { Session } from './model/types';
+import { merge, projectKey, sum, type ProjectStat } from './stats';
+import { hookStatus, inTauri, listenerError, loadMap, pickFolder, setHooks, setOnTop, storeWrite, type Agent, type HookStatus } from './transport';
 import { Canvas, type Trace } from './ui/Canvas';
 import { Card } from './ui/Card';
 import { PlanBar } from './ui/PlanBar';
-import { StatusLine, type Totals } from './ui/StatusLine';
-import { TopBar } from './ui/TopBar';
+import { Projects, type ProjectRow } from './ui/Projects';
+import { SettingsMenu } from './ui/SettingsMenu';
+import { Stats } from './ui/Stats';
+import { StatusLine } from './ui/StatusLine';
+import { TopBar, type Popover, type Tab } from './ui/TopBar';
 
-interface Root {
-  model: State;
-  totals: Totals;
-}
-
-const start: Root = { model: emptyState, totals: { events: 0, replied: 0, mapChars: 0 } };
-
-/** Длина строки; у свёрнутой слушателем строки она хранится в поле chars. */
-const size = (v: unknown): number =>
-  typeof v === 'string' ? v.length : Number((v as { chars?: number } | null)?.chars ?? 0);
-
-/** Сколько символов этот хук добавил к стоимости схемы: запрос на неё или запись её файла. */
-function mapChars(body: unknown): number {
-  if (typeof body !== 'object' || body === null) return 0;
-  const b = body as Record<string, any>;
-  if (b.hook_event_name === 'UserPromptSubmit') return String(b.prompt ?? '').includes(MAP_FILE) ? size(b.prompt) : 0;
-  if (b.hook_event_name !== 'PreToolUse' || typeof b.tool_input !== 'object' || b.tool_input === null) return 0;
-  const input = b.tool_input as Record<string, unknown>;
-  const path = String(input.file_path ?? '').replace(/\\/g, '/');
-  if (path.endsWith(MAP_FILE)) return size(input.content ?? input.new_string);
-  return b.tool_name === 'apply_patch' && String(input.command ?? '').includes(MAP_FILE) ? size(input.command) : 0;
-}
-
-function root(r: Root, env: Envelope | 'reset'): Root {
-  if (env === 'reset') return start;
-  const events = env.source === 'codex' ? normalizeCodex(env) : normalizeClaude(env);
-  return {
-    model: events.reduce(reduce, r.model),
-    totals: {
-      events: r.totals.events + 1,
-      replied: r.totals.replied + env.replied,
-      mapChars: r.totals.mapChars + mapChars(env.body),
-    },
-  };
-}
-
-/** Без выбора человека показываем сессию, где что-то происходило последним. */
-function pick(sessions: Session[], chosen: string | null): Session | undefined {
-  return sessions.find((s) => s.sid === chosen)
-    ?? [...sessions].sort((a, b) => Number(a.state === 'closed') - Number(b.state === 'closed') || b.lastAt - a.lastAt)[0];
-}
+const tabState = (sessions: Session[]): Tab['state'] =>
+  sessions.some((s) => s.state === 'waiting') ? 'waiting' : sessions.some((s) => s.state === 'running') ? 'running' : sessions.length ? 'idle' : 'saved';
 
 export function App() {
-  const [{ model, totals }, dispatch] = useReducer(root, start);
+  const [error, setError] = useState('');
+  const { model, events, counters } = useRoot((up) => up || setError('Нет связи со слушателем'));
+  const usage = useUsage(counters);
+  const limits = useLimits(counters, usage);
+  const [settings, setSettings, ready] = useSettings();
+  const saved = useSaved();
+  const [added, setAdded] = useState<Record<string, ProjectStat>>({});   // папки, открытые вручную
+  const [closed, setClosed] = useState<string[]>([]);               // вкладки, закрытые в этом запуске
   const [chosen, setChosen] = useState<string | null>(null);
   const [hooks, setHookState] = useState<HookStatus | null>(null);
   const [onTop, setTop] = useState(false);
-  const [error, setError] = useState('');
   const [mapText, setMapText] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
   const [trace, setTrace] = useState<Trace>(null);
-  const [query, setQuery] = useState('');
+  const [stats, setStats] = useState(false);
+  const [popover, setPopover] = useState<Popover>(null);
   const [copied, setCopied] = useState(false);
-  const search = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    void connect({ onEnvelope: dispatch, onLink: (up) => up || setError('Нет связи со слушателем'), onReset: () => dispatch('reset') });
     if (!inTauri) return;
     hookStatus().then(setHookState, (e) => setError(String(e)));
     listenerError().then((e) => e && setError(e), (e) => setError(String(e)));
   }, []);
 
+  // Сохранённое при запуске плюс то, что набежало с тех пор.
+  const store = useMemo(() => merge(saved ?? { projects: {} }, counters, usage, added), [saved, counters, usage, added]);
+
+  // Статистика пишется на диск не чаще раза в три секунды.
+  const text = useMemo(() => JSON.stringify(store), [store]);
+  const written = useRef('');
+  useEffect(() => {
+    if (!saved || text === written.current) return;
+    const id = setTimeout(() => {
+      written.current = text;
+      storeWrite('projects', text).catch((e) => setError(String(e)));
+    }, 3000);
+    return () => clearTimeout(id);
+  }, [text, saved]);
+
   const sessions = model.order.map((sid) => model.sessions[sid]);
-  const session = pick(sessions, chosen);
-  const cwd = session?.cwd ?? '';
+  const of = (key: string) => sessions.filter((s) => s.state !== 'closed' && projectKey(s.cwd) === key);
+
+  // Вкладки: открытые раньше и проекты, где сейчас идут сессии. Закрытая вкладка сама не возвращается.
+  const liveKeys = sessions.filter((s) => s.state !== 'closed' && s.cwd).map((s) => projectKey(s.cwd));
+  const keys = [...new Set([...settings.tabs, ...liveKeys])].filter((k) => store.projects[k] && !closed.includes(k));
+  const tabs: Tab[] = keys.map((key) => {
+    const mine = of(key);
+    const path = store.projects[key].path;
+    return { key, name: project(path), path, agents: [...new Set(mine.map((s) => s.source))], state: tabState(mine) };
+  });
+  // Пока настройки и статистика не прочитаны, список вкладок неполон: не затираем им сохранённый.
+  useEffect(() => {
+    if (ready && saved && keys.join('\n') !== settings.tabs.join('\n')) setSettings({ ...settings, tabs: keys });
+  }, [ready, saved, keys.join('\n')]);
+
+  // Без выбора человека показываем проект, где что-то происходило последним.
+  const recent = [...sessions].filter((s) => s.state !== 'closed' && keys.includes(projectKey(s.cwd))).sort((a, b) => b.lastAt - a.lastAt)[0];
+  const selected = chosen && keys.includes(chosen) ? chosen : recent ? projectKey(recent.cwd) : keys[0] ?? null;
+  const session = selected ? latest(of(selected)) : undefined;
+  const cwd = selected ? store.projects[selected].path : '';
+  const totals = selected ? sum(store.projects[selected]) : undefined;
+
   // Часы нужны, пока агент занят и ещё пару секунд после: подсветка узла гаснет не сразу.
   const busy = sessions.some((s) => s.state === 'running' || s.state === 'waiting' || Date.now() - s.lastAt < 3000);
   const now = useNow(busy);
 
-  // Схема лежит в папке проекта; перечитываем её раз в три секунды, пока сессия выбрана.
+  // Схема лежит в папке проекта; перечитываем её раз в три секунды, пока проект выбран.
   useEffect(() => {
     setMapText(null);
     setFocus(null);
+    setStats(false);
     if (!cwd) return;
     let alive = true;
-    const read = () => loadMap(cwd).then((text) => alive && setMapText(text), () => undefined);
+    const read = () => loadMap(cwd).then((t) => alive && setMapText(t), () => undefined);
     read();
     const id = setInterval(read, 3000);
     return () => {
@@ -102,36 +107,26 @@ export function App() {
   const map = parsed?.map;
   const match = useMemo(() => (map ? matcher(map) : null), [map]);
   const lv = match ? live(session, match, now) : { nodes: new Map(), stray: 0 };
-  const found = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q || !map) return null;
-    return new Set(map.nodes.filter((n) => `${n.label} ${n.tech ?? ''} ${n.id}`.toLowerCase().includes(q)).map((n) => n.id));
-  }, [query, map]);
 
   const onFocus = (id: string | null) => {
     setFocus(id);
     setTrace(null);
-    setQuery('');
+    if (id) setStats(false);
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onFocus(null);
-        search.current?.blur();
-      } else if (e.key === '/' && document.activeElement !== search.current) {
-        e.preventDefault();
-        search.current?.focus();
-      } else if (e.key === 'Enter' && document.activeElement === search.current && found?.size) {
-        onFocus([...found][0]);
-      }
+      if (e.key !== 'Escape') return;
+      setPopover(null);
+      setStats(false);
+      onFocus(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [found]);
+  }, []);
 
-  const copy = (text: string) =>
-    navigator.clipboard.writeText(text).then(() => {
+  const copy = (value: string) =>
+    navigator.clipboard.writeText(value).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     }, (e) => setError(String(e)));
@@ -139,25 +134,51 @@ export function App() {
     setHooks(agent, on).then((st) => { setHookState(st); setError(''); }, (e) => setError(String(e)));
   const onOnTop = (on: boolean) => setOnTop(on).then(() => setTop(on), (e) => setError(String(e)));
 
-  const copyButton = (text: string, label: string) => (
-    <button class={`btn${copied ? ' is-done' : ''}`} onClick={() => copy(text)}>
+  const open = (key: string) => {
+    setClosed(closed.filter((k) => k !== key));
+    if (!settings.tabs.includes(key)) setSettings({ ...settings, tabs: [...settings.tabs, key] });
+    setChosen(key);
+    setPopover(null);
+  };
+  const close = (key: string) => {
+    setClosed([...closed, key]);
+    if (chosen === key) setChosen(null);
+  };
+  const pick = () =>
+    pickFolder().then((path) => {
+      if (!path) return;
+      setAdded({ ...added, [projectKey(path)]: { path, lastAt: Date.now(), sessions: {} } });
+      open(projectKey(path));
+    }, (e) => setError(String(e)));
+
+  const rows: ProjectRow[] = Object.entries(store.projects)
+    .map(([key, p]) => ({ key, name: project(p.path), path: p.path, tokens: sum(p).total, lastAt: p.lastAt, state: tabState(of(key)), open: keys.includes(key) }))
+    .sort((a, b) => b.lastAt - a.lastAt);
+
+  const copyButton = (value: string, label: string) => (
+    <button class={`btn${copied ? ' is-done' : ''}`} onClick={() => copy(value)}>
       <Icon name={copied ? 'check' : 'copy'} size={16} />{copied ? 'Скопировано' : label}
     </button>
   );
+  const command = mapCommand(session?.source ?? 'claude');
+  const side = stats && selected && totals;
 
   return (
     <>
+      {popover && <div class="veil" onClick={() => setPopover(null)} />}
       <TopBar
-        sessions={sessions} selected={session} hooks={hooks} onTop={onTop} query={query} searchRef={search}
-        onQuery={setQuery} onSelect={setChosen} onHooks={onHooks} onOnTop={onOnTop}
+        tabs={tabs} selected={selected} hooks={hooks} onTop={onTop} popover={popover}
+        projects={<Projects rows={rows} onOpen={open} onPick={pick} />}
+        settings={<SettingsMenu settings={settings} onChange={setSettings} />}
+        onSelect={setChosen} onClose={close} onPopover={setPopover} onHooks={onHooks} onOnTop={onOnTop}
       />
       <PlanBar session={session} />
 
-      <main class={`stage${map && focus ? ' has-card' : ''}`}>
+      <main class={`stage${(map && focus) || side ? ' has-card' : ''}`}>
         {map ? (
           <>
-            <Canvas map={map} live={lv} focus={focus} trace={trace} found={found} onFocus={onFocus} />
-            {focus && <Card map={map} id={focus} live={lv.nodes.get(focus)} trace={trace} onTrace={setTrace} onFocus={onFocus} />}
+            <Canvas map={map} live={lv} focus={focus} trace={trace} onFocus={onFocus} />
+            {focus && !side && <Card map={map} id={focus} live={lv.nodes.get(focus)} trace={trace} onTrace={setTrace} onFocus={onFocus} />}
           </>
         ) : parsed ? (
           <div class="empty">
@@ -169,24 +190,28 @@ export function App() {
         ) : (
           <div class="empty">
             <span class="tile"><Icon name="service" size={26} /></span>
-            <h2>{session ? 'У этого проекта ещё нет схемы' : 'Ни одна сессия не подключена'}</h2>
+            <h2>{selected ? 'У этого проекта ещё нет схемы' : 'Ни один проект не открыт'}</h2>
             <p>
-              {session
-                ? `Попросите агента составить её: скопируйте запрос и вставьте в его терминал. Агент запишет ${MAP_FILE}, и схема появится здесь сама.`
+              {selected
+                ? `Попросите агента составить её: наберите в его терминале ${command}. Агент запишет ${MAP_FILE}, и схема появится здесь сама.`
                 : inTauri
-                  ? 'Подключите Claude Code или Codex кнопкой в верхней полосе и начните сессию в терминале.'
+                  ? 'Подключите Claude Code или Codex кнопкой в верхней полосе и начните сессию в терминале. Прошлые проекты открываются кнопкой «+».'
                   : 'Запустите dev/bridge.mjs и начните сессию агента с настроенными хуками.'}
             </p>
-            {session && copyButton(MAP_PROMPT, 'Скопировать запрос для агента')}
+            {selected && copyButton(command, 'Скопировать команду')}
           </div>
         )}
+        {side && <Stats name={project(cwd)} path={cwd} sum={totals} limits={limits} onClose={() => setStats(false)} />}
         {hooks?.codex && !sessions.some((s) => s.source === 'codex') && (
           <div class="note">Codex запускает только подтверждённые хуки: выполните в нём /hooks один раз.</div>
         )}
         {error && <div class="note is-error">{error}</div>}
       </main>
 
-      <StatusLine session={session} totals={totals} stray={lv.stray} />
+      <StatusLine
+        session={session} sum={totals} stray={lv.stray} events={events} statsOpen={stats}
+        onStats={() => { setStats(!stats); setFocus(null); }}
+      />
     </>
   );
 }

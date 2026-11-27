@@ -1,10 +1,11 @@
 // Окно ΒybAi: слушатель хуков на 127.0.0.1:4517 и команды для страницы.
 // Слушатель делает то же, что dev/bridge.mjs: те же адреса, ответы и правило свёртки.
 mod hooks;
+mod usage;
 
 use std::collections::VecDeque;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -31,6 +32,9 @@ struct Log {
 
 struct Home(PathBuf);
 struct ListenerError(Option<String>);
+/// Последние лимиты подписки Claude Code: их присылает его строка состояния.
+#[derive(Default)]
+struct Limits(Option<Value>);
 
 // ── Свёртка длинных строк ────────────────────────────────────────
 
@@ -111,6 +115,7 @@ fn listen(app: tauri::AppHandle) -> Result<(), String> {
             let source = match (req.method(), req.url()) {
                 (Method::Post, "/hook/claude") => Some("claude"),
                 (Method::Post, "/hook/codex") => Some("codex"),
+                (Method::Post, "/status/claude") => Some("status"),
                 _ => None,
             };
             let Some(source) = source else {
@@ -124,6 +129,10 @@ fn listen(app: tauri::AppHandle) -> Result<(), String> {
             }
             let mut body = Vec::new();
             let _ = req.as_reader().take(BODY_LIMIT).read_to_end(&mut body);
+            if source == "status" {
+                status_line(&app, req, &body);
+                continue;
+            }
             // Сначала ответ, потом работа: агент не ждёт. Ответ пустой — ему не уходит ни байта.
             let replied = 0;
             let _ = req.respond(Response::empty(204u16));
@@ -134,6 +143,21 @@ fn listen(app: tauri::AppHandle) -> Result<(), String> {
         }
     });
     Ok(())
+}
+
+/// Строка состояния Claude Code: забираем лимиты подписки и отвечаем текстом строки.
+/// Он рисуется в терминале человека и в контекст модели не попадает.
+fn status_line(app: &tauri::AppHandle, req: tiny_http::Request, body: &[u8]) {
+    let limits = serde_json::from_slice::<Value>(body).ok().and_then(|json| usage::claude_limits(&json["rate_limits"]));
+    let text = limits.as_ref().map(usage::limits_text).unwrap_or_default();
+    let kind = tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"text/plain; charset=utf-8"[..]).unwrap();
+    let _ = req.respond(Response::from_string(text).with_header(kind));
+    let state = app.state::<Mutex<Limits>>();
+    let mut state = state.lock().unwrap();
+    if state.0 != limits {
+        state.0 = limits.clone();
+        let _ = app.emit("limits", limits);
+    }
 }
 
 // ── Команды страницы ─────────────────────────────────────────────
@@ -170,16 +194,78 @@ fn read_map(cwd: String) -> Option<String> {
     std::fs::read_to_string(file).ok()
 }
 
+// ── Свои файлы: настройки окна и статистика проектов ─────────────
+
+const STORES: &[&str] = &["settings", "projects"];
+
+fn store_file(home: &Path, name: &str) -> Option<PathBuf> {
+    STORES.contains(&name).then(|| home.join(".bybai").join(format!("{name}.json")))
+}
+
+#[tauri::command]
+fn store_read(home: tauri::State<'_, Home>, name: String) -> Option<String> {
+    std::fs::read_to_string(store_file(&home.0, &name)?).ok()
+}
+
+/// Пишет рядом временный файл и переименовывает: половину файла никто не прочитает.
+#[tauri::command]
+fn store_write(home: tauri::State<'_, Home>, name: String, text: String) -> Result<(), String> {
+    let file = store_file(&home.0, &name).ok_or("Неизвестное хранилище")?;
+    let tmp = file.with_extension("tmp");
+    std::fs::create_dir_all(home.0.join(".bybai"))
+        .and_then(|_| std::fs::write(&tmp, text))
+        .and_then(|_| std::fs::rename(&tmp, &file))
+        .map_err(|e| format!("Не удалось записать {}: {e}", file.display()))
+}
+
+/// Расход сессии агента из его журнала на диске; None — журнал не найден.
+#[tauri::command(async)]
+fn usage(
+    home: tauri::State<'_, Home>,
+    scans: tauri::State<'_, Mutex<usage::Scans>>,
+    source: String,
+    sid: String,
+    transcript: Option<String>,
+    tz: i64,
+) -> Option<Value> {
+    scans.lock().unwrap().usage(&home.0, &source, &sid, transcript.as_deref(), tz)
+}
+
+#[tauri::command]
+fn limits(limits: tauri::State<'_, Mutex<Limits>>) -> Option<Value> {
+    limits.lock().unwrap().0.clone()
+}
+
+/// Возвращает главное окно на экран: повторный запуск и щелчок по плашке.
+#[tauri::command]
+fn show_main(app: tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
 pub fn run() {
     let app = tauri::Builder::default()
         // Плагин одного экземпляра должен идти первым: повторный запуск показывает уже открытое окно.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app.clone())))
+        .plugin(tauri_plugin_dialog::init())
+        .on_window_event(|window, event| {
+            if window.label() != "main" {
+                return;
             }
-        }))
+            match event {
+                // Плашка поверх экранов живёт, пока главное окно свёрнуто.
+                tauri::WindowEvent::Resized(_) => {
+                    let minimized = window.is_minimized().unwrap_or(false);
+                    let _ = window.app_handle().emit_to("hud", "minimized", minimized);
+                }
+                // Окно плашки скрыто и само приложение не завершит.
+                tauri::WindowEvent::Destroyed => window.app_handle().exit(0),
+                _ => {}
+            }
+        })
         .setup(|app| {
             // BYBAI_HOME подменяет домашний каталог: проверки не трогают настоящие настройки агентов.
             let home = match std::env::var_os("BYBAI_HOME") {
@@ -187,15 +273,24 @@ pub fn run() {
                 None => app.path().home_dir()?,
             };
             app.manage(Mutex::new(Log::default()));
+            app.manage(Mutex::new(usage::Scans::default()));
+            app.manage(Mutex::new(Limits::default()));
             // Занятый порт — не повод не запускаться: причину отдаёт listener_error.
             let error = listen(app.handle().clone()).err();
             app.manage(ListenerError(error));
             // Хуки стоят в настройках агентов, только пока приложение работает.
             hooks::sync(&home, true);
             app.manage(Home(home));
+            // Окна создаём сами и последними ("create": false в tauri.conf.json): страница вызывает
+            // команды сразу после загрузки, и к этому времени состояние должно быть готово.
+            for window in app.config().app.windows.clone() {
+                tauri::WebviewWindowBuilder::from_config(app.handle(), &window)?.build()?;
+            }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![backlog, hooks_status, hooks_set, listener_error, read_map])
+        .invoke_handler(tauri::generate_handler![
+            backlog, hooks_status, hooks_set, listener_error, read_map, store_read, store_write, usage, limits, show_main
+        ])
         .build(tauri::generate_context!())
         .expect("приложение не запустилось");
     app.run(|app, event| {
